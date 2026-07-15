@@ -1,0 +1,49 @@
+{
+  "name": "novixa",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Novixa — AI Business Operating System",
+  "author": "Novixa Team",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web",
+    "start": "npm run start --workspace=apps/web",
+    "lint": "npm run lint --workspace=apps/web",
+    "lint:fix": "npm run lint:fix --workspace=apps/web",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css,yml,yaml}\"",
+    "typecheck": "npm run typecheck --workspace=apps/web",
+    "test": "npm run test --workspace=apps/web",
+    "prepare": "husky",
+    "commitlint": "commitlint --edit"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.0",
+    "prettier": "^3.5.3",
+    "prettier-plugin-tailwindcss": "^0.6.11"
+  },
+  "lint-staged": {
+    "apps/web/**/*.{ts,tsx,js,jsx}": [
+      "prettier --write"
+    ],
+    "apps/web/**/*.{json,md,css,yml,yaml}": [
+      "prettier --write"
+    ],
+    "apps/api/**/*.py": [
+      "apps/api/.venv/bin/ruff check --fix --config apps/api/pyproject.toml",
+      "apps/api/.venv/bin/ruff format --config apps/api/pyproject.toml"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "packageManager": "npm@10.9.2"
+}

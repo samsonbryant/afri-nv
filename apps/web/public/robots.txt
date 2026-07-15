@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /workflows
+Disallow: /automations
+Disallow: /settings
+Disallow: /login
+Disallow: /register
+
+Sitemap: https://novixa.ai/sitemap.xml

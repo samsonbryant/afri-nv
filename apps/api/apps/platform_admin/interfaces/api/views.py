@@ -1,0 +1,107 @@
+"""Platform admin API views — staff only."""
+
+from __future__ import annotations
+
+from uuid import UUID
+
+from drf_spectacular.utils import extend_schema
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.platform_admin.infrastructure.dependencies import get_platform_admin_service
+from apps.platform_admin.interfaces.serializers.serializers import (
+    AdminUserUpdateSerializer,
+    PlatformSettingUpdateSerializer,
+)
+
+
+class AdminUsersView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(tags=["admin"])
+    def get(self, request: Request) -> Response:
+        return Response(get_platform_admin_service().list_users())
+
+
+class AdminUserDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(tags=["admin"])
+    def get(self, request: Request, user_id: UUID) -> Response:
+        return Response(get_platform_admin_service().get_user(user_id))
+
+    @extend_schema(request=AdminUserUpdateSerializer, tags=["admin"])
+    def patch(self, request: Request, user_id: UUID) -> Response:
+        serializer = AdminUserUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        return Response(
+            get_platform_admin_service().update_user(user_id, serializer.validated_data)
+        )
+
+
+class AdminOrganizationsView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(tags=["admin"])
+    def get(self, request: Request) -> Response:
+        return Response(get_platform_admin_service().list_organizations())
+
+
+class AdminSubscriptionsView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(tags=["admin"])
+    def get(self, request: Request) -> Response:
+        return Response(get_platform_admin_service().list_subscriptions())
+
+
+class AdminPaymentsView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(tags=["admin"])
+    def get(self, request: Request) -> Response:
+        return Response(get_platform_admin_service().list_payments())
+
+
+class AdminAnalyticsOverviewView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(tags=["admin"])
+    def get(self, request: Request) -> Response:
+        return Response(get_platform_admin_service().analytics_overview())
+
+
+class AdminAiUsageView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(tags=["admin"])
+    def get(self, request: Request) -> Response:
+        return Response(get_platform_admin_service().ai_usage())
+
+
+class AdminAuditLogsView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(tags=["admin"])
+    def get(self, request: Request) -> Response:
+        return Response(get_platform_admin_service().audit_logs())
+
+
+class AdminSettingsView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(tags=["admin"])
+    def get(self, request: Request) -> Response:
+        return Response(get_platform_admin_service().list_settings())
+
+    @extend_schema(request=PlatformSettingUpdateSerializer, tags=["admin"])
+    def patch(self, request: Request) -> Response:
+        key = request.data.get("key") or request.query_params.get("key")
+        serializer = PlatformSettingUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        return Response(
+            get_platform_admin_service().update_setting(key, data["value"], data.get("description"))
+        )

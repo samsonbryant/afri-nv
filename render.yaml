@@ -1,0 +1,124 @@
+# =============================================================================
+# Render Blueprint — Novixa
+# https://render.com/docs/blueprint-spec
+# =============================================================================
+services:
+  - type: web
+    name: novixa-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    plan: starter
+    healthCheckPath: /api/v1/health/
+    envVars:
+      - key: DJANGO_ENV
+        value: production
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: novixa-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: novixa-redis
+          type: redis
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          name: novixa-redis
+          type: redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          name: novixa-redis
+          type: redis
+          property: connectionString
+      - key: CACHE_URL
+        fromService:
+          name: novixa-redis
+          type: redis
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - fromGroup: novixa-secrets
+
+  - type: web
+    name: novixa-web
+    runtime: docker
+    dockerfilePath: ./apps/web/Dockerfile
+    dockerContext: ./apps/web
+    plan: starter
+    envVars:
+      - key: NEXT_PUBLIC_APP_NAME
+        value: Novixa
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+
+  - type: worker
+    name: novixa-celery
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: ./apps/api
+    plan: starter
+    dockerCommand: celery -A config worker --loglevel=warning --concurrency=2
+    envVars:
+      - key: DJANGO_ENV
+        value: production
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        fromService:
+          name: novixa-api
+          type: web
+          envVarKey: SECRET_KEY
+      - key: DATABASE_URL
+        fromDatabase:
+          name: novixa-db
+          property: connectionString
+      - key: CELERY_BROKER_URL
+        fromService:
+          name: novixa-redis
+          type: redis
+          property: connectionString
+      - key: CELERY_RESULT_BACKEND
+        fromService:
+          name: novixa-redis
+          type: redis
+          property: connectionString
+      - fromGroup: novixa-secrets
+
+  - type: redis
+    name: novixa-redis
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
+databases:
+  - name: novixa-db
+    plan: starter
+    postgresMajorVersion: "16"
+    databaseName: novixa
+    user: novixa
+
+envVarGroups:
+  - name: novixa-secrets
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: JWT_SIGNING_KEY
+        generateValue: true
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production

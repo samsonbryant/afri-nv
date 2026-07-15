@@ -1,0 +1,96 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+apps/web/.turbo/
+apps/web/next-env.d.ts
+
+# Django
+apps/api/staticfiles/
+apps/api/media/
+apps/api/*.sqlite3
+apps/api/.coverage
+apps/api/htmlcov/
+apps/api/.pytest_cache/
+apps/api/.mypy_cache/
+apps/api/.ruff_cache/
+
+# Testing
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Docker
+docker-data/
+
+# Misc
+*.pem
+.cache/
+.turbo/
+*.tsbuildinfo
+.eslintcache
+.prettiercache
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Secrets
+secrets/
+*.key
+credentials.json
+
+# Redis
+dump.rdb
+
+# Mis-scaffolded empty Django shells (real apps: apps/api/apps/*)
+/apps/agents/
+/apps/analytics/
+/apps/assistant/
+/apps/billing/
+/apps/dashboard/
+/apps/developer/
+/apps/meetings/
+/apps/platform_admin/
+/apps/security/

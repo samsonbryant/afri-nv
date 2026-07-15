@@ -1,0 +1,15 @@
+Dockerfile
+.dockerignore
+.gitignore
+node_modules
+.next
+.git
+*.md
+.env
+.env.*
+!.env.example
+coverage
+playwright-report
+test-results
+*.log
+.DS_Store

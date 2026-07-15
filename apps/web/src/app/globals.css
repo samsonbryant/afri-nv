@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 210 40% 8%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 40% 8%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 40% 8%;
+    --primary: 174 72% 28%;
+    --primary-foreground: 170 40% 98%;
+    --secondary: 210 25% 94%;
+    --secondary-foreground: 210 30% 18%;
+    --muted: 210 20% 94%;
+    --muted-foreground: 210 12% 42%;
+    --accent: 199 45% 92%;
+    --accent-foreground: 199 50% 18%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 174 72% 28%;
+    --radius: 0.625rem;
+    --sidebar: 210 30% 97%;
+    --sidebar-foreground: 210 30% 14%;
+    --sidebar-border: 210 20% 88%;
+    --sidebar-accent: 174 40% 92%;
+    --sidebar-accent-foreground: 174 60% 18%;
+  }
+
+  .dark {
+    --background: 210 35% 7%;
+    --foreground: 210 20% 96%;
+    --card: 210 32% 10%;
+    --card-foreground: 210 20% 96%;
+    --popover: 210 32% 10%;
+    --popover-foreground: 210 20% 96%;
+    --primary: 174 58% 42%;
+    --primary-foreground: 170 40% 6%;
+    --secondary: 210 25% 16%;
+    --secondary-foreground: 210 15% 90%;
+    --muted: 210 25% 14%;
+    --muted-foreground: 210 12% 62%;
+    --accent: 199 35% 16%;
+    --accent-foreground: 199 40% 88%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 20% 18%;
+    --input: 210 20% 18%;
+    --ring: 174 58% 42%;
+    --sidebar: 210 35% 8%;
+    --sidebar-foreground: 210 15% 92%;
+    --sidebar-border: 210 20% 16%;
+    --sidebar-accent: 174 30% 16%;
+    --sidebar-accent-foreground: 174 45% 85%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-none;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

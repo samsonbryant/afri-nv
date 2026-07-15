@@ -1,0 +1,92 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  applyCoupon,
+  createCheckout,
+  fetchInvoices,
+  fetchPlans,
+  fetchSubscription,
+  fetchUsage,
+} from "@/features/billing/api/billing-api";
+import type { CheckoutInput, CouponInput } from "@/features/billing/types";
+import { useAuthStore } from "@/features/auth/stores/auth-store";
+import { useOrganizationsStore } from "@/features/organizations/stores/organizations-store";
+import { getErrorMessage } from "@/lib/api/errors";
+
+export const billingKeys = {
+  all: ["billing"] as const,
+  plans: (orgId: string | null) => [...billingKeys.all, "plans", orgId] as const,
+  subscription: (orgId: string | null) => [...billingKeys.all, "subscription", orgId] as const,
+  invoices: (orgId: string | null) => [...billingKeys.all, "invoices", orgId] as const,
+  usage: (orgId: string | null) => [...billingKeys.all, "usage", orgId] as const,
+};
+
+function useOrgId() {
+  const storeId = useOrganizationsStore((s) => s.activeOrganizationId);
+  const authOrgId = useAuthStore((s) => s.organization?.id ?? null);
+  return storeId ?? authOrgId;
+}
+
+export function usePlans() {
+  const orgId = useOrgId();
+  return useQuery({
+    queryKey: billingKeys.plans(orgId),
+    queryFn: () => fetchPlans(orgId),
+  });
+}
+
+export function useSubscription() {
+  const orgId = useOrgId();
+  return useQuery({
+    queryKey: billingKeys.subscription(orgId),
+    queryFn: () => fetchSubscription(orgId),
+  });
+}
+
+export function useInvoices() {
+  const orgId = useOrgId();
+  return useQuery({
+    queryKey: billingKeys.invoices(orgId),
+    queryFn: () => fetchInvoices(orgId),
+  });
+}
+
+export function useUsageMeters() {
+  const orgId = useOrgId();
+  return useQuery({
+    queryKey: billingKeys.usage(orgId),
+    queryFn: () => fetchUsage(orgId),
+  });
+}
+
+export function useCheckout() {
+  const orgId = useOrgId();
+  return useMutation({
+    mutationFn: (input: CheckoutInput) => createCheckout(input, orgId),
+    onSuccess: (result) => {
+      if (result.url) {
+        window.location.href = result.url;
+      } else {
+        toast.success("Checkout started");
+      }
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+}
+
+export function useApplyCoupon() {
+  const orgId = useOrgId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CouponInput) => applyCoupon(input, orgId),
+    onSuccess: (result) => {
+      toast.success(result.message);
+      void queryClient.invalidateQueries({
+        queryKey: billingKeys.subscription(orgId),
+      });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+}

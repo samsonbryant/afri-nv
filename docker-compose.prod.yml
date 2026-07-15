@@ -1,0 +1,83 @@
+# =============================================================================
+# Novixa — Docker Compose (Production / Render-compatible)
+# =============================================================================
+services:
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: production
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DJANGO_ENV: production
+      DEBUG: "False"
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application
+             --bind 0.0.0.0:8000
+             --workers $${WEB_CONCURRENCY:-2}
+             --timeout $${GUNICORN_TIMEOUT:-120}
+             --access-logfile -
+             --error-logfile -
+             --capture-output"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - novixa-network
+
+  celery-worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: production
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DJANGO_ENV: production
+      DEBUG: "False"
+    command: celery -A config worker --loglevel=warning --concurrency=4
+    networks:
+      - novixa-network
+
+  celery-beat:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: production
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DJANGO_ENV: production
+      DEBUG: "False"
+    command: celery -A config beat --loglevel=warning --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    networks:
+      - novixa-network
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: production
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - novixa-network
+
+networks:
+  novixa-network:
+    driver: bridge

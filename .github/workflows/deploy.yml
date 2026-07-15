@@ -1,0 +1,24 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  notify-render:
+    name: Trigger Render Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy API (Render)
+        if: ${{ secrets.RENDER_API_DEPLOY_HOOK != '' }}
+        run: |
+          curl -X POST "${{ secrets.RENDER_API_DEPLOY_HOOK }}"
+
+      - name: Deploy Web (Render)
+        if: ${{ secrets.RENDER_WEB_DEPLOY_HOOK != '' }}
+        run: |
+          curl -X POST "${{ secrets.RENDER_WEB_DEPLOY_HOOK }}"

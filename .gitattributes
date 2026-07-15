@@ -1,0 +1,17 @@
+# Ignore lockfiles that are regenerated locally if needed
+# (package-lock.json IS committed for reproducible installs)
+
+* text=auto eol=lf
+*.py text diff=python
+*.ts text diff=typescript
+*.tsx text diff=typescript
+*.json text
+*.md text
+*.yml text
+*.yaml text
+*.svg text
+*.png binary
+*.jpg binary
+*.ico binary
+Dockerfile text
+Makefile text

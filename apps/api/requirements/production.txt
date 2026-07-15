@@ -1,0 +1,4 @@
+# Novixa API — production dependencies
+-r base.txt
+
+sentry-sdk[django,celery]>=2.14,<3.0

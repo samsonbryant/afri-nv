@@ -1,0 +1,183 @@
+# =============================================================================
+# Novixa — Docker Compose (Development)
+# =============================================================================
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: novixa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-novixa}
+      POSTGRES_USER: ${POSTGRES_USER:-novixa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-novixa_dev_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-novixa} -d ${POSTGRES_DB:-novixa}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - novixa-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: novixa-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - novixa-network
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: development
+    container_name: novixa-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      DATABASE_URL: postgresql://${POSTGRES_USER:-novixa}:${POSTGRES_PASSWORD:-novixa_dev_password}@postgres:5432/${POSTGRES_DB:-novixa}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      CACHE_URL: redis://redis:6379/3
+      RUN_MIGRATIONS: "True"
+      RUN_COLLECTSTATIC: "True"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api:/app
+      - api_static:/app/staticfiles
+      - api_media:/app/media
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - novixa-network
+
+  celery-worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: development
+    container_name: novixa-celery-worker
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      DATABASE_URL: postgresql://${POSTGRES_USER:-novixa}:${POSTGRES_PASSWORD:-novixa_dev_password}@postgres:5432/${POSTGRES_DB:-novixa}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      RUN_MIGRATIONS: "False"
+      RUN_COLLECTSTATIC: "False"
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    command: ["celery", "-A", "config", "worker", "--loglevel=info", "--concurrency=2"]
+    networks:
+      - novixa-network
+
+  celery-beat:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: development
+    container_name: novixa-celery-beat
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+      DATABASE_URL: postgresql://${POSTGRES_USER:-novixa}:${POSTGRES_PASSWORD:-novixa_dev_password}@postgres:5432/${POSTGRES_DB:-novixa}
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      RUN_MIGRATIONS: "False"
+      RUN_COLLECTSTATIC: "False"
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      - celery-worker
+    command:
+      [
+        "celery",
+        "-A",
+        "config",
+        "beat",
+        "--loglevel=info",
+        "--scheduler",
+        "django_celery_beat.schedulers:DatabaseScheduler",
+      ]
+    networks:
+      - novixa-network
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: development
+    container_name: novixa-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+    command: npm run dev
+    networks:
+      - novixa-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  api_static:
+  api_media:
+
+networks:
+  novixa-network:
+    driver: bridge
