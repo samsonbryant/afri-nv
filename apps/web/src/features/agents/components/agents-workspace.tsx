@@ -52,8 +52,8 @@ export function AgentsWorkspace() {
     agents.find((a) => a.category === selectedAgentId?.replace("agent-", "")) ??
     null;
 
-  const effectiveId =
-    selected?.id ?? (selectedAgentId?.startsWith("agent-") ? selectedAgentId : null);
+  // Backend agent routes require a UUID — never call /agents/agent-sales/...
+  const effectiveId = selected?.id ?? null;
 
   const { data: runs = [], isLoading: runsLoading } = useAgentRuns(effectiveId);
   const runAgent = useRunAgent(effectiveId);
@@ -85,11 +85,12 @@ export function AgentsWorkspace() {
                 key={item.id}
                 type="button"
                 onClick={() => {
-                  if (existing) setSelectedAgentId(existing.id);
-                  else {
-                    createAgent.mutate(item.category);
-                    setSelectedAgentId(`agent-${item.category}`);
+                  if (existing) {
+                    setSelectedAgentId(existing.id);
+                    return;
                   }
+                  // createAgent sets the real UUID on success
+                  createAgent.mutate(item.category);
                 }}
                 className={cn(
                   "border-border bg-card hover:bg-accent/40 rounded-xl border p-4 text-left transition-colors",

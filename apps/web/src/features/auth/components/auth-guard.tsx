@@ -10,22 +10,44 @@ type AuthGuardProps = {
   children: React.ReactNode;
 };
 
-export function AuthGuard({ children }: AuthGuardProps) {
-  const router = useRouter();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const accessToken = useAuthStore((state) => state.accessToken);
+/**
+ * Wait until Zustand persist has rehydrated on the client.
+ * Never touch `persist` during the initial SSR/render path — it can be undefined.
+ */
+function useAuthHydrated(): boolean {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setHydrated(true);
+    const persistApi = useAuthStore.persist;
+    if (!persistApi?.hasHydrated || !persistApi?.onFinishHydration) {
+      setHydrated(true);
+      return;
+    }
+    if (persistApi.hasHydrated()) {
+      setHydrated(true);
+      return;
+    }
+    return persistApi.onFinishHydration(() => setHydrated(true));
   }, []);
+
+  return hydrated;
+}
+
+export function AuthGuard({ children }: AuthGuardProps) {
+  const router = useRouter();
+  const hydrated = useAuthHydrated();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const accessToken = useAuthStore((state) => state.accessToken);
+
+  const hasValidSession =
+    isAuthenticated && Boolean(accessToken) && !accessToken?.startsWith("demo-");
 
   useEffect(() => {
     if (!hydrated) return;
-    if (!isAuthenticated || !accessToken) {
+    if (!hasValidSession) {
       router.replace(ROUTES.login);
     }
-  }, [hydrated, isAuthenticated, accessToken, router]);
+  }, [hydrated, hasValidSession, router]);
 
   if (!hydrated) {
     return (
@@ -39,7 +61,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  if (!isAuthenticated || !accessToken) {
+  if (!hasValidSession) {
     return null;
   }
 

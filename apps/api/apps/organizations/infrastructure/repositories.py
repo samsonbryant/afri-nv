@@ -76,6 +76,9 @@ class DjangoMembershipRepository(AbstractMembershipRepository):
         qs = Membership.objects.filter(organization_id=organization_id)
         return [self._to_entity(m) for m in qs]
 
+    def count_for_organization(self, organization_id: UUID) -> int:
+        return Membership.objects.filter(organization_id=organization_id).count()
+
     def create(self, *, user_id: UUID, organization_id: UUID, role: str) -> MembershipEntity:
         m = Membership.objects.create(
             user_id=user_id,

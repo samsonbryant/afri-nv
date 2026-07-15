@@ -29,11 +29,18 @@ function useOrgId() {
   return storeId ?? authOrgId;
 }
 
+function isAgentUuid(id: string | null | undefined): id is string {
+  return Boolean(
+    id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id),
+  );
+}
+
 export function useAgentCatalog() {
   const orgId = useOrgId();
   return useQuery({
     queryKey: agentKeys.catalog(orgId),
     queryFn: () => fetchAgentCatalog(orgId),
+    enabled: Boolean(orgId),
   });
 }
 
@@ -42,15 +49,17 @@ export function useAgents() {
   return useQuery({
     queryKey: agentKeys.list(orgId),
     queryFn: () => fetchAgents(orgId),
+    enabled: Boolean(orgId),
   });
 }
 
 export function useAgentRuns(agentId: string | null) {
   const orgId = useOrgId();
+  const canFetch = isAgentUuid(agentId) && Boolean(orgId);
   return useQuery({
     queryKey: agentKeys.runs(agentId ?? "", orgId),
     queryFn: () => fetchAgentRuns(agentId!, orgId),
-    enabled: Boolean(agentId),
+    enabled: canFetch,
   });
 }
 
@@ -74,7 +83,7 @@ export function useRunAgent(agentId: string | null) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: RunAgentInput) => {
-      if (!agentId) throw new Error("Select an agent first");
+      if (!isAgentUuid(agentId)) throw new Error("Select an agent first");
       return runAgent(agentId, input, orgId);
     },
     onSuccess: () => {

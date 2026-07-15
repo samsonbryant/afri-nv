@@ -35,16 +35,20 @@ def _openai_failure_message(exc: BaseException) -> str:
             "Add billing credits at https://platform.openai.com/settings/organization/billing"
         )
     if "invalid_api_key" in text or "Incorrect API key" in text:
-        return "[openai-auth] Invalid OPENAI_API_KEY."
+        return (
+            "[openai-auth] Invalid API key for the configured AI endpoint. "
+            "Use a platform.openai.com key, or an OpenRouter sk-or- key with "
+            "OPENAI_BASE_URL=https://openrouter.ai/api/v1."
+        )
     return f"[openai-error] {text[:240]}"
 
 
 class OpenAILLMProvider:
     def __init__(self, api_key: str, model: str) -> None:
-        from openai import OpenAI
+        from infrastructure.ai.client import get_openai_client, resolve_chat_model
 
-        self.client = OpenAI(api_key=api_key)
-        self.model = model
+        self.client = get_openai_client(api_key)
+        self.model = resolve_chat_model(model)
 
     def complete(self, prompt: str, *, system: str = "", temperature: float = 0.4) -> str:
         messages: list[dict[str, str]] = []
@@ -92,6 +96,12 @@ def get_llm_service() -> LLMService:
     if _llm_service is None:
         _llm_service = LLMService()
     return _llm_service
+
+
+def reset_llm_service() -> None:
+    """Clear the cached provider (e.g. after env changes)."""
+    global _llm_service
+    _llm_service = None
 
 
 def complete(prompt: str, *, system: str = "", temperature: float = 0.4) -> str:

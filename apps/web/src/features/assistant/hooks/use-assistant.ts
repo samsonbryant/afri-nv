@@ -13,6 +13,7 @@ import {
 import { useAssistantStore } from "@/features/assistant/stores/assistant-store";
 import type { SendMessagePayload } from "@/features/assistant/types";
 import { useActiveOrganizationId } from "@/features/organizations/hooks/use-organizations";
+import { useAuthStore } from "@/features/auth/stores/auth-store";
 import { getErrorMessage } from "@/lib/api/errors";
 
 export const assistantKeys = {
@@ -24,10 +25,11 @@ export const assistantKeys = {
 
 export function useConversations() {
   const orgId = useActiveOrganizationId();
+  const accessToken = useAuthStore((state) => state.accessToken);
   return useQuery({
     queryKey: assistantKeys.conversations(orgId),
     queryFn: () => fetchConversations(orgId),
-    enabled: Boolean(orgId),
+    enabled: Boolean(orgId && accessToken && !accessToken.startsWith("demo-")),
   });
 }
 

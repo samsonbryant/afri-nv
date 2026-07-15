@@ -34,7 +34,11 @@ def _format_openai_error(exc: BaseException) -> str:
     if "insufficient_quota" in text or "exceeded your current quota" in text:
         return "insufficient_quota — add payment method / credits in the OpenAI billing dashboard"
     if "invalid_api_key" in text or "Incorrect API key" in text:
-        return "invalid_api_key — regenerate the key and update OPENAI_API_KEY"
+        return (
+            "invalid_api_key — this key was rejected by the AI endpoint. "
+            "OpenAI keys start with sk- (not sk-or-). OpenRouter keys need "
+            "OPENAI_BASE_URL=https://openrouter.ai/api/v1 (auto-detected for sk-or-*)."
+        )
     if "model_not_found" in text or "does not exist" in text:
         return f"model error — check AI_DEFAULT_MODEL ({getattr(settings, 'AI_DEFAULT_MODEL', 'gpt-4o')})"
     return text[:280]
@@ -186,9 +190,9 @@ class AssistantService:
     def _openai_reply(
         self, conversation: Conversation, user_content: str, api_key: str
     ) -> tuple[str, list[dict], int]:
-        from openai import OpenAI
+        from infrastructure.ai.client import get_openai_client, resolve_chat_model
 
-        client = OpenAI(api_key=api_key)
+        client = get_openai_client(api_key)
         history = list(
             Message.objects.filter(conversation=conversation).order_by("created_at")[:20]
         )
@@ -207,7 +211,7 @@ class AssistantService:
         messages.append({"role": "user", "content": user_content})
 
         completion = client.chat.completions.create(
-            model=getattr(settings, "AI_DEFAULT_MODEL", "gpt-4o"),
+            model=resolve_chat_model(getattr(settings, "AI_DEFAULT_MODEL", "gpt-4o")),
             messages=messages,
             temperature=0.4,
         )

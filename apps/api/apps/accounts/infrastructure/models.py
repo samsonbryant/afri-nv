@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from django.conf import settings
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models
@@ -44,6 +45,10 @@ class User(UUIDModel, TimeStampedModel, AbstractUser):
     username = None  # type: ignore[assignment]
     email = models.EmailField(unique=True, db_index=True)
     avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
+    is_email_verified = models.BooleanField(default=False, db_index=True)
+    email_verified_at = models.DateTimeField(blank=True, null=True)
+    totp_secret = models.CharField(max_length=255, blank=True, null=True)
+    is_2fa_enabled = models.BooleanField(default=False, db_index=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
@@ -58,3 +63,50 @@ class User(UUIDModel, TimeStampedModel, AbstractUser):
 
     def __str__(self) -> str:
         return self.email
+
+
+class EmailVerificationToken(UUIDModel, TimeStampedModel):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="email_verification_tokens",
+    )
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = "accounts_email_verification_token"
+        ordering = ("-created_at",)
+
+
+class PasswordResetToken(UUIDModel, TimeStampedModel):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="password_reset_tokens",
+    )
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = "accounts_password_reset_token"
+        ordering = ("-created_at",)
+
+
+class UserSession(UUIDModel, TimeStampedModel):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sessions",
+    )
+    jti = models.CharField(max_length=255, unique=True, db_index=True)
+    user_agent = models.CharField(max_length=512, blank=True, default="")
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    last_seen_at = models.DateTimeField(blank=True, null=True)
+    revoked_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = "accounts_user_session"
+        ordering = ("-created_at",)

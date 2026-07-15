@@ -35,8 +35,25 @@ export type AuthTokens = {
 
 export type AuthResponse = {
   user: User;
-  organization: Organization;
+  organization: Organization | null;
   tokens: AuthTokens;
+};
+
+export type NotificationItem = {
+  id: string;
+  title: string;
+  body?: string;
+  href?: string | null;
+  read: boolean;
+  createdAt: string;
+};
+
+export type OrganizationMember = {
+  id: string;
+  userId: string;
+  email?: string;
+  fullName: string;
+  role: string;
 };
 
 export type Workflow = {

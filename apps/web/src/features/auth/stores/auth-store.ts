@@ -11,13 +11,16 @@ type AuthState = {
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
+  pendingTwoFactorToken: string | null;
   setSession: (payload: {
     user: User;
-    organization: Organization;
+    organization: Organization | null;
     accessToken: string;
     refreshToken: string;
   }) => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
+  setPendingTwoFactorToken: (token: string | null) => void;
+  setOrganization: (organization: Organization | null) => void;
   logout: () => void;
 };
 
@@ -29,6 +32,7 @@ export const useAuthStore = create<AuthState>()(
       accessToken: null,
       refreshToken: null,
       isAuthenticated: false,
+      pendingTwoFactorToken: null,
       setSession: ({ user, organization, accessToken, refreshToken }) =>
         set({
           user,
@@ -36,9 +40,12 @@ export const useAuthStore = create<AuthState>()(
           accessToken,
           refreshToken,
           isAuthenticated: true,
+          pendingTwoFactorToken: null,
         }),
       setTokens: (accessToken, refreshToken) =>
         set({ accessToken, refreshToken, isAuthenticated: true }),
+      setPendingTwoFactorToken: (pendingTwoFactorToken) => set({ pendingTwoFactorToken }),
+      setOrganization: (organization) => set({ organization }),
       logout: () =>
         set({
           user: null,
@@ -46,6 +53,7 @@ export const useAuthStore = create<AuthState>()(
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
+          pendingTwoFactorToken: null,
         }),
     }),
     {
@@ -56,6 +64,7 @@ export const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
+        pendingTwoFactorToken: state.pendingTwoFactorToken,
       }),
     },
   ),

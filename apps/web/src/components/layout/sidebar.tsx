@@ -2,12 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
 import {
+  BarChart3,
+  BookOpen,
+  Bot,
+  Code2,
+  CreditCard,
+  FileText,
   GitBranch,
   LayoutDashboard,
+  LifeBuoy,
+  LineChart,
+  Megaphone,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  Shield,
+  Sparkles,
+  Users,
+  Video,
   Zap,
 } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
@@ -17,12 +31,25 @@ import { cn } from "@/lib/utils/cn";
 import { NAV_ITEMS, ROUTES } from "@/lib/constants";
 import { useUiStore } from "@/stores/ui-store";
 
-const iconMap = {
+const iconMap: Record<(typeof NAV_ITEMS)[number]["icon"], LucideIcon> = {
   LayoutDashboard,
+  Sparkles,
   GitBranch,
   Zap,
+  BookOpen,
+  Users,
+  LifeBuoy,
+  Megaphone,
+  FileText,
+  BarChart3,
+  Video,
+  Bot,
+  CreditCard,
+  LineChart,
+  Shield,
+  Code2,
   Settings,
-} as const;
+};
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -72,9 +99,9 @@ export function Sidebar() {
 
       <Separator className="bg-sidebar-border" />
 
-      <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Sidebar">
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3" aria-label="Sidebar">
         {NAV_ITEMS.map((item) => {
-          const Icon = iconMap[item.icon as keyof typeof iconMap];
+          const Icon = iconMap[item.icon] ?? LayoutDashboard;
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (

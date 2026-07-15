@@ -43,31 +43,42 @@ class StubEmbeddingProvider:
 
 
 class OpenAIEmbeddingProvider:
-    """OpenAI embeddings adapter."""
+    """OpenAI embeddings adapter (also OpenRouter / compatible gateways)."""
 
     def __init__(self, api_key: str, model: str, dimensions: int) -> None:
-        from openai import OpenAI
+        from infrastructure.ai.client import (
+            get_openai_client,
+            resolve_embedding_model,
+            resolve_openai_base_url,
+        )
 
-        self.client = OpenAI(api_key=api_key)
-        self.model = model
+        self.client = get_openai_client(api_key)
+        self.model = resolve_embedding_model(model)
         self.dimensions = dimensions
+        base = resolve_openai_base_url(api_key) or ""
+        self._supports_dimensions = "openrouter.ai" not in base
+
+    def _create(self, input_data: str | list[str]):
+        kwargs: dict = {"model": self.model, "input": input_data}
+        # Some gateways reject the dimensions parameter
+        if self._supports_dimensions and self.dimensions:
+            kwargs["dimensions"] = self.dimensions
+        try:
+            return self.client.embeddings.create(**kwargs)
+        except Exception:
+            if "dimensions" in kwargs:
+                kwargs.pop("dimensions", None)
+                return self.client.embeddings.create(**kwargs)
+            raise
 
     def embed(self, text: str) -> list[float]:
-        response = self.client.embeddings.create(
-            model=self.model,
-            input=text,
-            dimensions=self.dimensions,
-        )
+        response = self._create(text)
         return list(response.data[0].embedding)
 
     def embed_many(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
-        response = self.client.embeddings.create(
-            model=self.model,
-            input=texts,
-            dimensions=self.dimensions,
-        )
+        response = self._create(texts)
         ordered = sorted(response.data, key=lambda item: item.index)
         return [list(item.embedding) for item in ordered]
 

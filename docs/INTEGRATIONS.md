@@ -16,10 +16,11 @@ Copy from `.env.example` into:
 
 | Variable | Required | Example |
 |----------|----------|---------|
-| `OPENAI_API_KEY` | Yes | `sk-proj-...` |
+| `OPENAI_API_KEY` | Yes | OpenAI `sk-...` / `sk-proj-...`, or OpenRouter `sk-or-...` |
+| `OPENAI_BASE_URL` | For OpenRouter | `https://openrouter.ai/api/v1` (auto if key starts with `sk-or-`) |
 | `AI_DEFAULT_PROVIDER` | No | `openai` |
-| `AI_DEFAULT_MODEL` | No | `gpt-4o` or `gpt-4o-mini` (cheaper) |
-| `EMBEDDING_MODEL` | No | `text-embedding-3-small` |
+| `AI_DEFAULT_MODEL` | No | OpenAI: `gpt-4o-mini` · OpenRouter: `openai/gpt-4o-mini` |
+| `EMBEDDING_MODEL` | No | OpenAI: `text-embedding-3-small` · OpenRouter: `openai/text-embedding-3-small` |
 | `EMBEDDING_DIMENSIONS` | No | `1536` |
 
 Restart Django after changing `.env`. Without a key, Novixa uses stubs. With a key, it calls OpenAI; on API errors (quota, auth) it falls back and surfaces the error.

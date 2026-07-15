@@ -17,6 +17,8 @@ app_name = "dashboard"
 
 urlpatterns = [
     path("overview/", OverviewView.as_view(), name="overview"),
+    # Alias used by the web client
+    path("stats/", OverviewView.as_view(), name="stats"),
     path("activity/", ActivityView.as_view(), name="activity"),
     path("usage/", UsageView.as_view(), name="usage"),
 ]

@@ -38,6 +38,9 @@ class AbstractMembershipRepository(ABC):
     @abstractmethod
     def list_for_organization(self, organization_id: UUID) -> list[MembershipEntity]: ...
 
+    def count_for_organization(self, organization_id: UUID) -> int:
+        return len(self.list_for_organization(organization_id))
+
     @abstractmethod
     def create(self, *, user_id: UUID, organization_id: UUID, role: str) -> MembershipEntity: ...
 

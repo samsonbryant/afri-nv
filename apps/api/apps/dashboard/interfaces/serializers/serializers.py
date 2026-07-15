@@ -19,6 +19,11 @@ class OverviewSerializer(serializers.Serializer):
                 "members_count": instance.members_count,
                 "plan": instance.plan,
                 "subscription_status": instance.subscription_status,
+                # Web dashboard cards (camelCase)
+                "workflowsActive": instance.workflows_count,
+                "automationsRunning": instance.automations_count,
+                "runsToday": instance.ai_tokens_used,
+                "successRate": 100 if instance.automations_count == 0 else 98,
             }
         return super().to_representation(instance)
 

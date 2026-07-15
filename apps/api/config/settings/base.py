@@ -62,6 +62,21 @@ LOCAL_APPS = [
     "apps.workflows",
     "apps.automations",
     "apps.ai_engine",
+    "apps.dashboard",
+    "apps.assistant",
+    "apps.knowledge",
+    "apps.crm",
+    "apps.support",
+    "apps.marketing",
+    "apps.documents",
+    "apps.reports",
+    "apps.meetings",
+    "apps.agents",
+    "apps.billing",
+    "apps.analytics",
+    "apps.security",
+    "apps.platform_admin",
+    "apps.developer",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -244,6 +259,8 @@ SPECTACULAR_SETTINGS = {
 # AI / Embeddings
 # ---------------------------------------------------------------------------
 OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
+# Optional OpenAI-compatible gateway (auto-set for OpenRouter sk-or-* keys)
+OPENAI_BASE_URL = env("OPENAI_BASE_URL", default="")
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 AI_DEFAULT_PROVIDER = env("AI_DEFAULT_PROVIDER", default="openai")
 AI_DEFAULT_MODEL = env("AI_DEFAULT_MODEL", default="gpt-4o")
