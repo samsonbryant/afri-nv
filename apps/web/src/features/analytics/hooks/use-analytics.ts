@@ -18,8 +18,16 @@ function useOrgId() {
 
 export function useAnalyticsOverview() {
   const orgId = useOrgId();
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const canFetch = Boolean(orgId) && Boolean(accessToken) && !accessToken?.startsWith("demo-");
   return useQuery({
     queryKey: analyticsKeys.overview(orgId),
     queryFn: () => fetchAnalyticsOverview(orgId),
+    enabled: canFetch,
+    retry: (failureCount, error) => {
+      const status = (error as { status?: number })?.status;
+      if (status === 401 || status === 403) return false;
+      return failureCount < 2;
+    },
   });
 }

@@ -181,6 +181,9 @@ export async function apiClient<T>(path: string, options: ApiClientOptions = {})
       response = await doFetch(refreshed);
     } else if (accessToken) {
       clearAuthSession();
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+        window.location.assign("/login");
+      }
     }
   }
 

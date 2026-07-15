@@ -17,7 +17,8 @@ export function isDemoMode(): boolean {
   return DEMO_MODE;
 }
 
-export const AUTH_STORAGE_KEY = "novixa-auth";
+/** Bumped when JWT signing secrets change so stale browser sessions are discarded. */
+export const AUTH_STORAGE_KEY = "novixa-auth-v2";
 export const UI_STORAGE_KEY = "novixa-ui";
 export const ORG_STORAGE_KEY = "novixa-active-org";
 
