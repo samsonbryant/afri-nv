@@ -11,7 +11,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.automations.infrastructure.dependencies import get_automation_service
 from apps.workflows.application.dto import CreateWorkflowDTO, UpdateWorkflowDTO
+from apps.workflows.domain.node_types import list_node_types
 from apps.workflows.infrastructure.dependencies import get_workflow_service
 from apps.workflows.interfaces.serializers.serializers import (
     WorkflowSerializer,
@@ -104,3 +106,84 @@ class WorkflowDetailView(APIView):
         service = get_workflow_service()
         service.delete(request.user.id, workflow_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class WorkflowNodeTypesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["workflows"])
+    def get(self, request: Request) -> Response:
+        return Response(list_node_types())
+
+
+class WorkflowValidateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["workflows"])
+    def post(self, request: Request, workflow_id: UUID) -> Response:
+        definition = request.data.get("definition") if isinstance(request.data, dict) else None
+        result = get_workflow_service().validate_definition(
+            request.user.id,
+            workflow_id,
+            definition if isinstance(definition, dict) else None,
+        )
+        return Response(result)
+
+
+class WorkflowPublishView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["workflows"])
+    def post(self, request: Request, workflow_id: UUID) -> Response:
+        workflow = get_workflow_service().publish(request.user.id, workflow_id)
+        return Response(
+            {
+                "id": str(workflow.id),
+                "status": workflow.status,
+                "message": "Published",
+            }
+        )
+
+
+class WorkflowRunView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["workflows"])
+    def post(self, request: Request, workflow_id: UUID) -> Response:
+        payload = request.data.get("input") if isinstance(request.data, dict) else None
+        if payload is not None and not isinstance(payload, dict):
+            payload = {"value": payload}
+        result = get_workflow_service().run(
+            request.user.id,
+            workflow_id,
+            payload if isinstance(payload, dict) else None,
+        )
+        return Response(result, status=status.HTTP_201_CREATED)
+
+
+class WorkflowRunsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["workflows"])
+    def get(self, request: Request, workflow_id: UUID) -> Response:
+        workflow = get_workflow_service().get(request.user.id, workflow_id)
+        runs = get_automation_service().list_runs(
+            request.user.id,
+            workflow.organization_id,
+            workflow_id=workflow_id,
+        )
+        return Response(
+            [
+                {
+                    "id": str(r.id),
+                    "workflow_id": str(r.workflow_id),
+                    "status": r.status,
+                    "input_payload": r.input_payload,
+                    "output_payload": r.output_payload,
+                    "error_message": r.error_message,
+                    "created_at": r.created_at,
+                    "finished_at": r.finished_at,
+                }
+                for r in runs
+            ]
+        )

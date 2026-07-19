@@ -26,9 +26,16 @@ _STATUS_MAP: dict[type[DomainError], int] = {
 }
 
 
+def _status_for_domain_error(exc: DomainError) -> int:
+    """Walk the MRO so subclasses (e.g. NotOrganizationMemberError) map correctly."""
+    for cls in type(exc).mro():
+        if cls in _STATUS_MAP:
+            return _STATUS_MAP[cls]
+    return status.HTTP_400_BAD_REQUEST
+
+
 def custom_exception_handler(exc: Exception, context: dict[str, Any]) -> Response | None:
     if isinstance(exc, DomainError):
-        http_status = _STATUS_MAP.get(type(exc), status.HTTP_400_BAD_REQUEST)
         return Response(
             {
                 "error": {
@@ -36,7 +43,7 @@ def custom_exception_handler(exc: Exception, context: dict[str, Any]) -> Respons
                     "message": exc.message,
                 }
             },
-            status=http_status,
+            status=_status_for_domain_error(exc),
         )
 
     response = drf_exception_handler(exc, context)

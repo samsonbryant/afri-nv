@@ -77,11 +77,18 @@ class AutomationService:
             # Same DB connection/transaction can see the uncommitted row
             return self.execute_run(run_id)
 
-        transaction.on_commit(lambda: run_automation_task.delay(run_id))
+        def _enqueue() -> None:
+            try:
+                run_automation_task.delay(run_id)
+            except Exception:
+                # Broker down — run inline so prod still completes without Celery.
+                self.execute_run(run_id)
+
+        transaction.on_commit(_enqueue)
         return self._to_dto(run)
 
     def execute_run(self, run_id: str | UUID) -> AutomationRunDTO:
-        """Called by Celery worker to process a pending run."""
+        """Called by Celery worker (or inline fallback) to process a pending run."""
         run = self._runs.get_by_id(UUID(str(run_id)))
         if run is None:
             raise AutomationRunNotFoundError()
@@ -91,7 +98,9 @@ class AutomationService:
         self._runs.update(run)
 
         try:
-            output = self._simulate_execution(run.input_payload)
+            workflow = self._workflows.get_by_id(run.workflow_id)
+            definition = workflow.definition if workflow is not None else {}
+            output = self._execute_workflow(definition, run.input_payload)
             run.status = AutomationRunStatus.SUCCEEDED.value
             run.output_payload = output
             run.error_message = ""
@@ -108,12 +117,12 @@ class AutomationService:
             raise NotOrganizationMemberError()
 
     @staticmethod
-    def _simulate_execution(payload: dict[str, Any]) -> dict[str, Any]:
-        return {
-            "processed": True,
-            "echo": payload,
-            "completed_at": datetime.now(tz=UTC).isoformat(),
-        }
+    def _execute_workflow(
+        definition: dict[str, Any] | None, payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        from apps.workflows.application.executor import execute_workflow_definition
+
+        return execute_workflow_definition(definition, payload)
 
     @staticmethod
     def _to_dto(run: AutomationRunEntity) -> AutomationRunDTO:

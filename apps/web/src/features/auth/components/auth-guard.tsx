@@ -88,7 +88,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
         }
         if (!cancelled && first) {
           setOrganization(first);
-          setActiveOrganizationId(first.id);
+          const storedId = useOrganizationsStore.getState().activeOrganizationId;
+          const stillValid = listed.some((org) => org.id === storedId);
+          setActiveOrganizationId(stillValid && storedId ? storedId : first.id);
         }
       } catch {
         // Keep persisted session; API failures are handled by the client refresh path.

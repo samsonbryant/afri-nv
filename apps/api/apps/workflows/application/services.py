@@ -67,6 +67,71 @@ class WorkflowService:
         self._require_member(actor_id, workflow.organization_id)
         self._workflows.delete(workflow_id)
 
+    def validate_definition(
+        self, actor_id: UUID, workflow_id: UUID, definition: dict | None = None
+    ) -> dict:
+        workflow = self._get_or_404(workflow_id)
+        self._require_member(actor_id, workflow.organization_id)
+        payload = definition if isinstance(definition, dict) else workflow.definition
+        errors: list[str] = []
+        nodes = payload.get("nodes") if isinstance(payload.get("nodes"), list) else []
+        if not nodes:
+            errors.append("Add at least one node")
+        has_trigger = False
+        for node in nodes:
+            data = (
+                node.get("data")
+                if isinstance(node, dict) and isinstance(node.get("data"), dict)
+                else {}
+            )
+            kind = str(data.get("kind") or "").lower()
+            subtype = str(data.get("subtype") or "").lower()
+            if kind == "trigger" or subtype in {"manual", "webhook", "schedule", "record_created"}:
+                has_trigger = True
+                break
+        if nodes and not has_trigger:
+            errors.append("A trigger node is required")
+        return {"valid": len(errors) == 0, "errors": errors}
+
+    def publish(self, actor_id: UUID, workflow_id: UUID) -> WorkflowDTO:
+        workflow = self._get_or_404(workflow_id)
+        self._require_member(actor_id, workflow.organization_id)
+        validation = self.validate_definition(actor_id, workflow_id, workflow.definition)
+        if not validation["valid"]:
+            raise InvalidWorkflowDefinitionError("; ".join(validation["errors"]))
+        workflow.status = WorkflowStatus.ACTIVE.value
+        return self._to_dto(self._workflows.update(workflow))
+
+    def run(self, actor_id: UUID, workflow_id: UUID, input_payload: dict | None = None) -> dict:
+        """Publish-if-needed semantics: active workflows can be triggered via automations."""
+        from apps.automations.application.dto import TriggerAutomationDTO
+        from apps.automations.infrastructure.dependencies import get_automation_service
+
+        workflow = self._get_or_404(workflow_id)
+        self._require_member(actor_id, workflow.organization_id)
+        if workflow.status != WorkflowStatus.ACTIVE.value:
+            # Auto-activate when user hits Run from the studio.
+            validation = self.validate_definition(actor_id, workflow_id, workflow.definition)
+            if not validation["valid"]:
+                raise InvalidWorkflowDefinitionError("; ".join(validation["errors"]))
+            workflow.status = WorkflowStatus.ACTIVE.value
+            workflow = self._workflows.update(workflow)
+
+        run = get_automation_service().trigger(
+            actor_id,
+            TriggerAutomationDTO(
+                workflow_id=workflow.id,
+                input_payload=input_payload or {"source": "workflow_studio"},
+            ),
+        )
+        return {
+            "id": str(run.id),
+            "status": run.status,
+            "message": "Workflow run started",
+            "workflow_id": str(workflow.id),
+            "output_payload": run.output_payload,
+        }
+
     def _get_or_404(self, workflow_id: UUID) -> WorkflowEntity:
         workflow = self._workflows.get_by_id(workflow_id)
         if workflow is None:

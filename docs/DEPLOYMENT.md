@@ -55,6 +55,12 @@ python manage.py migrate --noinput
 python manage.py createsuperuser
 ```
 
+`createsuperuser` sets `is_staff=True`. Admin UI (`/admin` and `/api/v1/admin/*`) requires Django staff — a normal registered user gets **403**. To promote an existing account:
+
+```bash
+python manage.py shell -c "from apps.accounts.infrastructure.models import User; u=User.objects.get(email='you@example.com'); u.is_staff=True; u.is_superuser=True; u.save()"
+```
+
 Enable pgvector on Render Postgres if your plan supports extensions:
 
 ```sql

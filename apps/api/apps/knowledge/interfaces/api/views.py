@@ -45,7 +45,11 @@ class DocumentListCreateView(APIView):
         org_id = request.query_params.get("organization_id")
         if not org_id:
             raise ValidationError("organization_id is required.")
-        items = get_knowledge_service().list_documents(request.user.id, UUID(org_id))
+        try:
+            organization_id = UUID(str(org_id))
+        except ValueError as exc:
+            raise ValidationError("organization_id must be a valid UUID.") from exc
+        items = get_knowledge_service().list_documents(request.user.id, organization_id)
         return Response(DocumentSerializer(items, many=True).data)
 
     @extend_schema(request=DocumentUploadSerializer, tags=["knowledge"])

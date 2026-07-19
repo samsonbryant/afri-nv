@@ -135,7 +135,14 @@ class KnowledgeService:
         if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
             self.process_document(doc_id)
             return
-        transaction.on_commit(lambda: process_knowledge_document.delay(doc_id))
+
+        def _enqueue() -> None:
+            try:
+                process_knowledge_document.delay(doc_id)
+            except Exception:
+                self.process_document(doc_id)
+
+        transaction.on_commit(_enqueue)
 
     # ── Conversations / RAG ────────────────────────────────────
 

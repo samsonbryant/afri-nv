@@ -124,7 +124,14 @@ class ReportService:
         if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
             self.process_report(rid)
             return
-        transaction.on_commit(lambda: process_report_generation.delay(rid))
+
+        def _enqueue() -> None:
+            try:
+                process_report_generation.delay(rid)
+            except Exception:
+                self.process_report(rid)
+
+        transaction.on_commit(_enqueue)
 
     def _collect_metrics(self, report: Report) -> dict:
         org_id = report.organization_id

@@ -123,7 +123,14 @@ class DocumentStudioService:
         if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
             self.process_job(jid)
             return
-        transaction.on_commit(lambda: process_document_job.delay(jid))
+
+        def _enqueue() -> None:
+            try:
+                process_document_job.delay(jid)
+            except Exception:
+                self.process_job(jid)
+
+        transaction.on_commit(_enqueue)
 
     def _run_job(self, job: DocumentJob) -> dict:
         doc = job.document
