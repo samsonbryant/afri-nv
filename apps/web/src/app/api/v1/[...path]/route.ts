@@ -52,12 +52,15 @@ function filterRequestHeaders(source: Headers, upstreamHost: string): Headers {
     if (HOP_BY_HOP.has(lower)) return;
     if (lower.startsWith("x-forwarded-")) return;
     if (lower === "x-vercel-id" || lower === "x-vercel-forwarded-for") return;
+    // Node fetch decompresses responses; don't ask upstream for gzip/br.
+    if (lower === "accept-encoding") return;
     headers.set(key, value);
   });
   // Talk to Render as HTTPS; do not leak the Vercel Host (that triggered SSL redirect loops).
   headers.set("host", upstreamHost);
   headers.set("x-forwarded-proto", "https");
   headers.set("x-forwarded-host", upstreamHost);
+  headers.set("accept-encoding", "identity");
   return headers;
 }
 
@@ -68,6 +71,9 @@ function filterResponseHeaders(source: Headers): Headers {
     if (HOP_BY_HOP.has(lower)) return;
     // Relative Location from Django would bounce back through Vercel — drop redirects.
     if (lower === "location") return;
+    // fetch() already decoded the body; forwarding content-encoding causes
+    // net::ERR_CONTENT_DECODING_FAILED in the browser.
+    if (lower === "content-encoding" || lower === "content-length") return;
     headers.set(key, value);
   });
   return headers;
