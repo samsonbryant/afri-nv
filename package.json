@@ -18,7 +18,7 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css,yml,yaml}\"",
     "typecheck": "npm run typecheck --workspace=apps/web",
     "test": "npm run test --workspace=apps/web",
-    "prepare": "husky",
+    "prepare": "node -e \"if (process.env.CI || process.env.VERCEL) process.exit(0)\" && husky",
     "commitlint": "commitlint --edit"
   },
   "devDependencies": {

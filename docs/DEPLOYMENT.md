@@ -65,8 +65,10 @@ Do **not** deploy the Next.js app on Render. Use Vercel only.
 |---------|-------|
 | Framework | Next.js |
 | Root Directory | `apps/web` |
-| Install Command | From monorepo root: `npm ci` (configure in Vercel if needed) |
-| Build Command | `npm run build` (or `cd ../.. && npm run build -w @novixa/web`) |
+| Install Command | default (`npm install`) |
+| Build Command | `npm run build` |
+
+Root `prepare` skips Husky when `CI` or `VERCEL` is set, so installs do not fail on Vercel.
 
 ### Vercel environment variables
 
