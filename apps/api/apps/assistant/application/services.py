@@ -31,6 +31,13 @@ logger = logging.getLogger("apps.assistant")
 
 def _format_openai_error(exc: BaseException) -> str:
     text = str(exc)
+    if "requires more credits" in text or "Error code: 402" in text or '"code": 402' in text:
+        max_tokens = getattr(settings, "AI_MAX_TOKENS", 1024)
+        return (
+            "ai_credits — OpenRouter needs more credits (or a lower max_tokens). "
+            f"Add credits at https://openrouter.ai/settings/credits, or set AI_MAX_TOKENS "
+            f"(current default {max_tokens}) and optionally AI_DEFAULT_MODEL=gpt-4o-mini."
+        )
     if "insufficient_quota" in text or "exceeded your current quota" in text:
         return "insufficient_quota — add payment method / credits in the OpenAI billing dashboard"
     if "invalid_api_key" in text or "Incorrect API key" in text:
@@ -40,7 +47,7 @@ def _format_openai_error(exc: BaseException) -> str:
             "OPENAI_BASE_URL=https://openrouter.ai/api/v1 (auto-detected for sk-or-*)."
         )
     if "model_not_found" in text or "does not exist" in text:
-        return f"model error — check AI_DEFAULT_MODEL ({getattr(settings, 'AI_DEFAULT_MODEL', 'gpt-4o')})"
+        return f"model error — check AI_DEFAULT_MODEL ({getattr(settings, 'AI_DEFAULT_MODEL', 'gpt-4o-mini')})"
     return text[:280]
 
 
@@ -167,12 +174,18 @@ class AssistantService:
             },
         ]
         if openai_error:
+            is_openrouter = "openrouter" in openai_error.lower() or "ai_credits" in openai_error
+            billing_hint = (
+                "Add OpenRouter credits at https://openrouter.ai/settings/credits "
+                "(or lower `AI_MAX_TOKENS` / use `gpt-4o-mini`)"
+                if is_openrouter
+                else "Fix billing/quota at https://platform.openai.com/settings/organization/billing"
+            )
             reply = (
-                f"**OpenAI is not available right now.**\n\n"
+                f"**AI is not available right now.**\n\n"
                 f"`{openai_error}`\n\n"
                 f"> You asked: {user_content.strip()[:280]}\n\n"
-                f"Fix billing/quota at https://platform.openai.com/settings/organization/billing "
-                f"and ensure `OPENAI_API_KEY` is set, then retry."
+                f"{billing_hint} and ensure `OPENAI_API_KEY` is set, then retry."
             )
         else:
             reply = (
@@ -211,9 +224,10 @@ class AssistantService:
         messages.append({"role": "user", "content": user_content})
 
         completion = client.chat.completions.create(
-            model=resolve_chat_model(getattr(settings, "AI_DEFAULT_MODEL", "gpt-4o")),
+            model=resolve_chat_model(getattr(settings, "AI_DEFAULT_MODEL", "gpt-4o-mini")),
             messages=messages,
             temperature=0.4,
+            max_tokens=int(getattr(settings, "AI_MAX_TOKENS", 1024) or 1024),
         )
         content = completion.choices[0].message.content or ""
         usage = getattr(completion, "usage", None)

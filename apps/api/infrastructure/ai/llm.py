@@ -29,6 +29,12 @@ class StubLLMProvider:
 
 def _openai_failure_message(exc: BaseException) -> str:
     text = str(exc)
+    if "requires more credits" in text or '"code": 402' in text or "Error code: 402" in text:
+        return (
+            "[ai-credits] The AI provider rejected this request (not enough credits for the "
+            "reserved max_tokens). Add credits at https://openrouter.ai/settings/credits "
+            f"or lower AI_MAX_TOKENS (currently {getattr(settings, 'AI_MAX_TOKENS', 1024)})."
+        )
     if "insufficient_quota" in text or "exceeded your current quota" in text:
         return (
             "[openai-quota] OpenAI returned insufficient_quota. "
@@ -59,6 +65,7 @@ class OpenAILLMProvider:
             model=self.model,
             messages=messages,
             temperature=temperature,
+            max_tokens=int(getattr(settings, "AI_MAX_TOKENS", 1024) or 1024),
         )
         return completion.choices[0].message.content or ""
 
@@ -73,7 +80,7 @@ class LLMService:
         if api_key:
             return OpenAILLMProvider(
                 api_key=api_key,
-                model=getattr(settings, "AI_DEFAULT_MODEL", "gpt-4o"),
+                model=getattr(settings, "AI_DEFAULT_MODEL", "gpt-4o-mini"),
             )
         return StubLLMProvider()
 

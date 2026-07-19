@@ -124,6 +124,10 @@ envVarGroups:
         sync: false
       - key: OPENAI_BASE_URL
         sync: false
+      - key: AI_DEFAULT_MODEL
+        value: gpt-4o-mini
+      - key: AI_MAX_TOKENS
+        value: "1024"
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: JWT_SIGNING_KEY

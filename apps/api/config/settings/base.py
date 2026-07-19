@@ -289,7 +289,10 @@ OPENAI_API_KEY = env("OPENAI_API_KEY", default="")
 OPENAI_BASE_URL = env("OPENAI_BASE_URL", default="")
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 AI_DEFAULT_PROVIDER = env("AI_DEFAULT_PROVIDER", default="openai")
-AI_DEFAULT_MODEL = env("AI_DEFAULT_MODEL", default="gpt-4o")
+# Prefer mini for cost; OpenRouter prefixes openai/ automatically for bare ids.
+AI_DEFAULT_MODEL = env("AI_DEFAULT_MODEL", default="gpt-4o-mini")
+# Cap completion size so low-credit OpenRouter accounts are not blocked by model max (e.g. 16384).
+AI_MAX_TOKENS = env.int("AI_MAX_TOKENS", default=1024)
 EMBEDDING_MODEL = env("EMBEDDING_MODEL", default="text-embedding-3-small")
 EMBEDDING_DIMENSIONS = env.int("EMBEDDING_DIMENSIONS", default=1536)
 

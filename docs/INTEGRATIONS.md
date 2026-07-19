@@ -19,11 +19,25 @@ Copy from `.env.example` into:
 | `OPENAI_API_KEY` | Yes | OpenAI `sk-...` / `sk-proj-...`, or OpenRouter `sk-or-...` |
 | `OPENAI_BASE_URL` | For OpenRouter | `https://openrouter.ai/api/v1` (auto if key starts with `sk-or-`) |
 | `AI_DEFAULT_PROVIDER` | No | `openai` |
-| `AI_DEFAULT_MODEL` | No | OpenAI: `gpt-4o-mini` · OpenRouter: `openai/gpt-4o-mini` |
+| `AI_DEFAULT_MODEL` | No | Prefer `gpt-4o-mini` (cheaper). OpenRouter accepts `openai/gpt-4o-mini` or bare `gpt-4o-mini` |
+| `AI_MAX_TOKENS` | No | Completion cap (default `1024`). OpenRouter reserves this against credits — keep it low if balance is small |
 | `EMBEDDING_MODEL` | No | OpenAI: `text-embedding-3-small` · OpenRouter: `openai/text-embedding-3-small` |
 | `EMBEDDING_DIMENSIONS` | No | `1536` |
 
-Restart Django after changing `.env`. Without a key, Novixa uses stubs. With a key, it calls OpenAI; on API errors (quota, auth) it falls back and surfaces the error.
+Restart Django after changing `.env`. Without a key, Novixa uses stubs. With a key, it calls OpenAI/OpenRouter; on API errors (quota, auth, credits) it falls back and surfaces the error.
+
+### OpenRouter checklist
+
+1. Create a key at https://openrouter.ai/keys (`sk-or-...`).
+2. Add credits at https://openrouter.ai/settings/credits — a 402 “requires more credits / fewer max_tokens” means the key works but balance is too low for the reserved completion size.
+3. Set on Render (and local `.env`):
+   ```
+   OPENAI_API_KEY=sk-or-...
+   OPENAI_BASE_URL=https://openrouter.ai/api/v1
+   AI_DEFAULT_MODEL=gpt-4o-mini
+   AI_MAX_TOKENS=1024
+   ```
+4. Redeploy the API after changing env vars.
 
 ### OpenAI platform checklist
 
