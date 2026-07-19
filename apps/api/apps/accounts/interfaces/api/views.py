@@ -25,6 +25,8 @@ from apps.accounts.interfaces.serializers.serializers import (
     UpdateProfileSerializer,
     UserSerializer,
 )
+from apps.organizations.infrastructure.dependencies import get_organization_service
+from apps.organizations.interfaces.serializers.serializers import OrganizationSerializer
 
 
 def _absolute_avatar(request: Request, user_data: dict) -> dict:
@@ -32,6 +34,14 @@ def _absolute_avatar(request: Request, user_data: dict) -> dict:
     if avatar and isinstance(avatar, str) and avatar.startswith("/"):
         user_data = {**user_data, "avatar": request.build_absolute_uri(avatar)}
     return user_data
+
+
+def _ensure_organization(user) -> dict:
+    display = f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+    if not display:
+        display = getattr(user, "email", "Personal").split("@")[0]
+    org = get_organization_service().ensure_default(user.id, display_name=display)
+    return OrganizationSerializer(org).data
 
 
 class RegisterView(APIView):
@@ -59,6 +69,7 @@ class RegisterView(APIView):
         return Response(
             {
                 "user": _absolute_avatar(request, UserSerializer(user).data),
+                "organization": _ensure_organization(user),
                 "tokens": TokenPairSerializer(tokens).data,
             },
             status=status.HTTP_201_CREATED,
@@ -83,6 +94,7 @@ class LoginView(APIView):
         return Response(
             {
                 "user": _absolute_avatar(request, UserSerializer(user).data),
+                "organization": _ensure_organization(user),
                 "tokens": TokenPairSerializer(tokens).data,
             }
         )

@@ -34,6 +34,7 @@ export function usePlans() {
   return useQuery({
     queryKey: billingKeys.plans(orgId),
     queryFn: () => fetchPlans(orgId),
+    enabled: Boolean(orgId),
   });
 }
 
@@ -42,6 +43,7 @@ export function useSubscription() {
   return useQuery({
     queryKey: billingKeys.subscription(orgId),
     queryFn: () => fetchSubscription(orgId),
+    enabled: Boolean(orgId),
   });
 }
 
@@ -50,6 +52,7 @@ export function useInvoices() {
   return useQuery({
     queryKey: billingKeys.invoices(orgId),
     queryFn: () => fetchInvoices(orgId),
+    enabled: Boolean(orgId),
   });
 }
 
@@ -58,6 +61,7 @@ export function useUsageMeters() {
   return useQuery({
     queryKey: billingKeys.usage(orgId),
     queryFn: () => fetchUsage(orgId),
+    enabled: Boolean(orgId),
   });
 }
 

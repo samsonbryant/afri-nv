@@ -4,8 +4,16 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchCurrentUser } from "@/features/auth/api/auth-api";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
+import {
+  createOrganizationRequest,
+  fetchOrganizations,
+  normalizeOrganization,
+} from "@/features/organizations/api/organizations-api";
+import { useOrganizationsStore } from "@/features/organizations/stores/organizations-store";
+import { unwrapList } from "@/lib/api/org";
 import { ROUTES } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Organization } from "@/types/api";
 
 type AuthGuardProps = {
   children: React.ReactNode;
@@ -39,7 +47,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const hydrated = useAuthHydrated();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const accessToken = useAuthStore((state) => state.accessToken);
+  const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
+  const setOrganization = useAuthStore((state) => state.setOrganization);
+  const setActiveOrganizationId = useOrganizationsStore((state) => state.setActiveOrganizationId);
 
   const hasValidSession =
     isAuthenticated && Boolean(accessToken) && !accessToken?.startsWith("demo-");
@@ -54,17 +65,41 @@ export function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     if (!hydrated || !hasValidSession) return;
     let cancelled = false;
-    void fetchCurrentUser()
-      .then((user) => {
-        if (!cancelled) setUser(user);
-      })
-      .catch(() => {
+
+    async function syncProfileAndWorkspace() {
+      try {
+        const profile = await fetchCurrentUser();
+        if (!cancelled) setUser(profile);
+
+        const payload = await fetchOrganizations();
+        const listed = unwrapList(
+          payload as unknown as Organization[] | { results?: Organization[] },
+        ).map((item) => normalizeOrganization(item as unknown as Record<string, unknown>));
+        let first = listed[0] ?? null;
+        if (!first) {
+          const name =
+            profile.fullName && profile.fullName !== "User"
+              ? `${profile.fullName}'s Workspace`
+              : "Personal Workspace";
+          first = await createOrganizationRequest({
+            name,
+            slug: `workspace-${Date.now()}`,
+          });
+        }
+        if (!cancelled && first) {
+          setOrganization(first);
+          setActiveOrganizationId(first.id);
+        }
+      } catch {
         // Keep persisted session; API failures are handled by the client refresh path.
-      });
+      }
+    }
+
+    void syncProfileAndWorkspace();
     return () => {
       cancelled = true;
     };
-  }, [hydrated, hasValidSession, setUser]);
+  }, [hydrated, hasValidSession, setUser, setOrganization, setActiveOrganizationId, user?.id]);
 
   if (!hydrated) {
     return (

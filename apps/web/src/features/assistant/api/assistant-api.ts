@@ -1,5 +1,6 @@
 import { api } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
+import { ApiError } from "@/lib/api/errors";
 import { unwrapList, withOrg } from "@/lib/api/org";
 import { isDemoMode } from "@/lib/constants";
 import type {
@@ -118,6 +119,12 @@ export async function createConversation(
   title = "New chat",
   organizationId?: string | null,
 ): Promise<AssistantConversation> {
+  if (!organizationId) {
+    throw new ApiError("Select or create a workspace before chatting.", {
+      status: 400,
+      code: "organization_required",
+    });
+  }
   if (isDemoMode()) {
     const conversation: AssistantConversation = {
       id: `demo-c-${Date.now()}`,

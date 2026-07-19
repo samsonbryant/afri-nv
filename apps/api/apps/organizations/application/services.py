@@ -47,6 +47,31 @@ class OrganizationService:
         )
         return self._org_dto(org)
 
+    def ensure_default(self, user_id: UUID, *, display_name: str = "") -> OrganizationDTO:
+        """Return the user's first org, creating a personal workspace if needed."""
+        existing = self.list_for_user(user_id)
+        if existing:
+            return existing[0]
+
+        base = (display_name or "Personal").strip() or "Personal"
+        name = f"{base}'s Workspace" if base.lower() != "personal" else "Personal Workspace"
+        slug_base = (
+            "".join(ch.lower() if ch.isalnum() else "-" for ch in base).strip("-") or "workspace"
+        )
+        slug = f"{slug_base}-{str(user_id).split('-')[0]}"
+        # Collision-safe slug attempts
+        for attempt in range(5):
+            candidate = slug if attempt == 0 else f"{slug}-{attempt}"
+            if self._orgs.get_by_slug(candidate) is None:
+                return self.create(
+                    user_id,
+                    CreateOrganizationDTO(name=name, slug=candidate, plan="free"),
+                )
+        return self.create(
+            user_id,
+            CreateOrganizationDTO(name=name, slug=f"{slug}-{user_id.hex[:8]}", plan="free"),
+        )
+
     def list_for_user(self, user_id: UUID) -> list[OrganizationDTO]:
         return [self._org_dto(o) for o in self._orgs.list_for_user(user_id)]
 

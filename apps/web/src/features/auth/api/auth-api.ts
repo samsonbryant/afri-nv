@@ -150,6 +150,26 @@ async function buildAuthResponse(
     }
   }
 
+  if (!organization) {
+    const fallbackName =
+      user.fullName && user.fullName !== "User"
+        ? `${user.fullName}'s Workspace`
+        : "Personal Workspace";
+    try {
+      const created = await api.post<Record<string, unknown>>(
+        API_ENDPOINTS.organizations.create,
+        {
+          name: fallbackName,
+          slug: slugify(fallbackName) || `workspace-${Date.now()}`,
+        },
+        { token: access },
+      );
+      organization = normalizeOrganization(created);
+    } catch {
+      organization = null;
+    }
+  }
+
   return {
     user,
     organization,

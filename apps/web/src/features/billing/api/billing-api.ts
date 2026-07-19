@@ -121,6 +121,7 @@ function mapMeter(raw: Record<string, unknown>, index = 0): UsageMeter {
 export async function fetchSubscription(
   organizationId?: string | null,
 ): Promise<Subscription | null> {
+  if (!organizationId) return null;
   if (isDemoMode()) {
     return {
       id: "sub-demo",
@@ -162,6 +163,7 @@ export async function fetchPlans(organizationId?: string | null): Promise<Billin
 }
 
 export async function fetchInvoices(organizationId?: string | null): Promise<Invoice[]> {
+  if (!organizationId) return [];
   if (isDemoMode()) {
     const now = Date.now();
     return [
@@ -194,6 +196,7 @@ export async function fetchInvoices(organizationId?: string | null): Promise<Inv
 }
 
 export async function fetchUsage(organizationId?: string | null): Promise<UsageMeter[]> {
+  if (!organizationId) return [];
   if (isDemoMode()) {
     return [
       { id: "seats", label: "Seats", used: 12, limit: 20, unit: "seats" },
