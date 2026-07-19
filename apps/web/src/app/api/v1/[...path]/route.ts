@@ -32,7 +32,7 @@ function buildUpstreamUrl(pathSegments: string[], search: string): string {
   return `${origin}${pathname}${search}`;
 }
 
-const HOP_BY_HOP = new Set([
+const REQUEST_DROP = new Set([
   "connection",
   "keep-alive",
   "proxy-authenticate",
@@ -43,20 +43,34 @@ const HOP_BY_HOP = new Set([
   "upgrade",
   "host",
   "content-length",
+  "accept-encoding",
+]);
+
+/** Only forward safe upstream headers — never content-encoding (fetch decodes the body). */
+const RESPONSE_ALLOW = new Set([
+  "allow",
+  "cache-control",
+  "content-disposition",
+  "content-language",
+  "content-type",
+  "etag",
+  "expires",
+  "last-modified",
+  "retry-after",
+  "www-authenticate",
+  "x-request-id",
 ]);
 
 function filterRequestHeaders(source: Headers, upstreamHost: string): Headers {
   const headers = new Headers();
   source.forEach((value, key) => {
     const lower = key.toLowerCase();
-    if (HOP_BY_HOP.has(lower)) return;
+    if (REQUEST_DROP.has(lower)) return;
     if (lower.startsWith("x-forwarded-")) return;
-    if (lower === "x-vercel-id" || lower === "x-vercel-forwarded-for") return;
-    // Node fetch decompresses responses; don't ask upstream for gzip/br.
-    if (lower === "accept-encoding") return;
+    if (lower.startsWith("x-vercel-")) return;
     headers.set(key, value);
   });
-  // Talk to Render as HTTPS; do not leak the Vercel Host (that triggered SSL redirect loops).
+  // Talk to Render as HTTPS; do not leak the Vercel Host (SSL redirect loops).
   headers.set("host", upstreamHost);
   headers.set("x-forwarded-proto", "https");
   headers.set("x-forwarded-host", upstreamHost);
@@ -64,18 +78,16 @@ function filterRequestHeaders(source: Headers, upstreamHost: string): Headers {
   return headers;
 }
 
-function filterResponseHeaders(source: Headers): Headers {
+function buildClientHeaders(source: Headers): Headers {
   const headers = new Headers();
   source.forEach((value, key) => {
-    const lower = key.toLowerCase();
-    if (HOP_BY_HOP.has(lower)) return;
-    // Relative Location from Django would bounce back through Vercel — drop redirects.
-    if (lower === "location") return;
-    // fetch() already decoded the body; forwarding content-encoding causes
-    // net::ERR_CONTENT_DECODING_FAILED in the browser.
-    if (lower === "content-encoding" || lower === "content-length") return;
-    headers.set(key, value);
+    if (RESPONSE_ALLOW.has(key.toLowerCase())) {
+      headers.set(key, value);
+    }
   });
+  // Ensure browsers never try to brotli/gzip-decode a body we already hold decoded.
+  headers.delete("content-encoding");
+  headers.delete("content-length");
   return headers;
 }
 
@@ -107,7 +119,6 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]): Promise<N
 
   if (method !== "GET" && method !== "HEAD") {
     init.body = req.body;
-    // Required when streaming a request body in Node fetch.
     (init as RequestInit & { duplex?: string }).duplex = "half";
   }
 
@@ -126,7 +137,6 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]): Promise<N
     );
   }
 
-  // Follow a single upstream redirect only if it stays on the API origin (e.g. APPEND_SLASH).
   if (upstream.status >= 300 && upstream.status < 400) {
     const location = upstream.headers.get("location");
     if (location) {
@@ -144,7 +154,7 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]): Promise<N
           } as RequestInit);
         }
       } catch {
-        /* return original redirect response below without Location */
+        /* fall through */
       }
     }
   }
@@ -161,10 +171,36 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]): Promise<N
     );
   }
 
-  return new NextResponse(upstream.body, {
+  // Buffer the decoded body. Streaming upstream.body while Cloudflare/Render sent
+  // content-encoding caused Vercel to advertise br/gzip with a plain body →
+  // net::ERR_CONTENT_DECODING_FAILED in the browser.
+  const clientHeaders = buildClientHeaders(upstream.headers);
+  const contentType = (upstream.headers.get("content-type") ?? "").toLowerCase();
+
+  if (method === "HEAD") {
+    return new NextResponse(null, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: clientHeaders,
+    });
+  }
+
+  if (contentType.includes("application/json")) {
+    const text = await upstream.text();
+    // Pass through raw JSON text to preserve exact payload; avoid re-encoding quirks.
+    clientHeaders.set("content-type", "application/json");
+    return new NextResponse(text, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: clientHeaders,
+    });
+  }
+
+  const body = await upstream.arrayBuffer();
+  return new NextResponse(body, {
     status: upstream.status,
     statusText: upstream.statusText,
-    headers: filterResponseHeaders(upstream.headers),
+    headers: clientHeaders,
   });
 }
 
