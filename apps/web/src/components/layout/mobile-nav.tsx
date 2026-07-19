@@ -17,6 +17,7 @@ import {
   Megaphone,
   Settings,
   Shield,
+  ShieldCheck,
   Sparkles,
   Users,
   Video,
@@ -24,11 +25,12 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useAuthStore } from "@/features/auth/stores/auth-store";
 import { cn } from "@/lib/utils/cn";
 import { NAV_ITEMS, ROUTES } from "@/lib/constants";
 import { useUiStore } from "@/stores/ui-store";
 
-const iconMap: Record<(typeof NAV_ITEMS)[number]["icon"], LucideIcon> = {
+const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
   Sparkles,
   GitBranch,
@@ -44,6 +46,7 @@ const iconMap: Record<(typeof NAV_ITEMS)[number]["icon"], LucideIcon> = {
   CreditCard,
   LineChart,
   Shield,
+  ShieldCheck,
   Code2,
   Settings,
 };
@@ -51,6 +54,9 @@ const iconMap: Record<(typeof NAV_ITEMS)[number]["icon"], LucideIcon> = {
 export function MobileNav() {
   const pathname = usePathname();
   const { sidebarOpen, setSidebarOpen } = useUiStore();
+  const user = useAuthStore((s) => s.user);
+  const isStaff = Boolean(user?.isStaff || user?.isSuperuser);
+  const items = NAV_ITEMS.filter((item) => !("staffOnly" in item && item.staffOnly) || isStaff);
 
   return (
     <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -63,7 +69,7 @@ export function MobileNav() {
           className="flex max-h-[calc(100vh-5rem)] flex-col gap-1 overflow-y-auto p-3"
           aria-label="Mobile navigation"
         >
-          {NAV_ITEMS.map((item) => {
+          {items.map((item) => {
             const Icon = iconMap[item.icon] ?? LayoutDashboard;
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 

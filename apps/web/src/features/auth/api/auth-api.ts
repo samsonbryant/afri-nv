@@ -56,7 +56,15 @@ export function normalizeUser(raw: RawUser): User {
     id: String(raw.id ?? ""),
     email: pickString(raw, "email"),
     fullName,
+    firstName: first || undefined,
+    lastName: last || undefined,
     avatarUrl: (raw.avatarUrl ?? raw.avatar_url ?? raw.avatar ?? null) as string | null,
+    isStaff: Boolean(raw.isStaff ?? raw.is_staff),
+    isSuperuser: Boolean(raw.isSuperuser ?? raw.is_superuser),
+    isActive:
+      raw.isActive === undefined && raw.is_active === undefined
+        ? true
+        : Boolean(raw.isActive ?? raw.is_active),
     createdAt: pickString(raw, "createdAt", "created_at") || now,
     updatedAt: pickString(raw, "updatedAt", "updated_at") || now,
   };
@@ -221,6 +229,38 @@ export async function fetchCurrentUser(): Promise<User> {
   return normalizeUser(raw);
 }
 
+export async function updateProfileRequest(payload: {
+  firstName?: string;
+  lastName?: string;
+}): Promise<User> {
+  const raw = await api.patch<RawUser>(
+    API_ENDPOINTS.auth.me,
+    {
+      first_name: payload.firstName,
+      last_name: payload.lastName,
+    },
+    { skipAuth: false },
+  );
+  return normalizeUser(raw);
+}
+
+export async function changePasswordRequest(payload: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<void> {
+  await api.post(API_ENDPOINTS.auth.changePassword, {
+    current_password: payload.currentPassword,
+    new_password: payload.newPassword,
+  });
+}
+
+export async function uploadAvatarRequest(file: File): Promise<User> {
+  const body = new FormData();
+  body.append("avatar", file);
+  const raw = await api.post<RawUser>(API_ENDPOINTS.auth.avatar, body);
+  return normalizeUser(raw);
+}
+
 export async function forgotPasswordRequest(email: string): Promise<{ detail?: string }> {
   try {
     return await api.post<{ detail?: string }>(API_ENDPOINTS.auth.forgotPassword, { email });
@@ -381,12 +421,16 @@ export function createDemoAuthResponse(
   organizationName = "Novixa Workspace",
 ): AuthResponse {
   const now = new Date().toISOString();
+  const isStaff = /admin|super/i.test(email);
   return {
     user: {
       id: "demo-user",
       email,
       fullName,
       avatarUrl: null,
+      isStaff,
+      isSuperuser: isStaff,
+      isActive: true,
       createdAt: now,
       updatedAt: now,
     },

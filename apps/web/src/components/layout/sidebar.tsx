@@ -19,6 +19,7 @@ import {
   PanelLeftOpen,
   Settings,
   Shield,
+  ShieldCheck,
   Sparkles,
   Users,
   Video,
@@ -27,11 +28,12 @@ import {
 import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useAuthStore } from "@/features/auth/stores/auth-store";
 import { cn } from "@/lib/utils/cn";
 import { NAV_ITEMS, ROUTES } from "@/lib/constants";
 import { useUiStore } from "@/stores/ui-store";
 
-const iconMap: Record<(typeof NAV_ITEMS)[number]["icon"], LucideIcon> = {
+const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
   Sparkles,
   GitBranch,
@@ -47,6 +49,7 @@ const iconMap: Record<(typeof NAV_ITEMS)[number]["icon"], LucideIcon> = {
   CreditCard,
   LineChart,
   Shield,
+  ShieldCheck,
   Code2,
   Settings,
 };
@@ -54,6 +57,9 @@ const iconMap: Record<(typeof NAV_ITEMS)[number]["icon"], LucideIcon> = {
 export function Sidebar() {
   const pathname = usePathname();
   const { sidebarCollapsed, toggleSidebarCollapsed } = useUiStore();
+  const user = useAuthStore((s) => s.user);
+  const isStaff = Boolean(user?.isStaff || user?.isSuperuser);
+  const items = NAV_ITEMS.filter((item) => !("staffOnly" in item && item.staffOnly) || isStaff);
 
   return (
     <aside
@@ -100,7 +106,7 @@ export function Sidebar() {
       <Separator className="bg-sidebar-border" />
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3" aria-label="Sidebar">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const Icon = iconMap[item.icon] ?? LayoutDashboard;
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 

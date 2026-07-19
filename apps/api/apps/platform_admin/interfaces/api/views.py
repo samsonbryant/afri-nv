@@ -5,6 +5,7 @@ from __future__ import annotations
 from uuid import UUID
 
 from drf_spectacular.utils import extend_schema
+from rest_framework import status
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -12,6 +13,7 @@ from rest_framework.views import APIView
 
 from apps.platform_admin.infrastructure.dependencies import get_platform_admin_service
 from apps.platform_admin.interfaces.serializers.serializers import (
+    AdminUserCreateSerializer,
     AdminUserUpdateSerializer,
     PlatformSettingUpdateSerializer,
 )
@@ -23,6 +25,13 @@ class AdminUsersView(APIView):
     @extend_schema(tags=["admin"])
     def get(self, request: Request) -> Response:
         return Response(get_platform_admin_service().list_users())
+
+    @extend_schema(request=AdminUserCreateSerializer, tags=["admin"])
+    def post(self, request: Request) -> Response:
+        serializer = AdminUserCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = get_platform_admin_service().create_user(serializer.validated_data)
+        return Response(user, status=status.HTTP_201_CREATED)
 
 
 class AdminUserDetailView(APIView):
@@ -94,7 +103,7 @@ class AdminSettingsView(APIView):
 
     @extend_schema(tags=["admin"])
     def get(self, request: Request) -> Response:
-        return Response(get_platform_admin_service().list_settings())
+        return Response(get_platform_admin_service().settings_summary())
 
     @extend_schema(request=PlatformSettingUpdateSerializer, tags=["admin"])
     def patch(self, request: Request) -> Response:

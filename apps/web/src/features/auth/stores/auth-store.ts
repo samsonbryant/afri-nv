@@ -19,6 +19,7 @@ type AuthState = {
     refreshToken: string;
   }) => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
+  setUser: (user: User) => void;
   setPendingTwoFactorToken: (token: string | null) => void;
   setOrganization: (organization: Organization | null) => void;
   logout: () => void;
@@ -44,6 +45,7 @@ export const useAuthStore = create<AuthState>()(
         }),
       setTokens: (accessToken, refreshToken) =>
         set({ accessToken, refreshToken, isAuthenticated: true }),
+      setUser: (user) => set({ user }),
       setPendingTwoFactorToken: (pendingTwoFactorToken) => set({ pendingTwoFactorToken }),
       setOrganization: (organization) => set({ organization }),
       logout: () =>

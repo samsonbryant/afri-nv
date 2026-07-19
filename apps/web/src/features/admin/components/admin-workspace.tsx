@@ -1,10 +1,22 @@
 "use client";
 
-import { Shield } from "lucide-react";
+import { useState } from "react";
+import { Building2, Plus, Shield, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -18,12 +30,17 @@ import {
   useAdminAiUsage,
   useAdminAuditLogs,
   useAdminOrganizations,
+  useAdminOverview,
   useAdminPayments,
   useAdminSettings,
   useAdminSubscriptions,
   useAdminUsers,
+  useCreateAdminUser,
+  useUpdateAdminSettings,
+  useUpdateAdminUser,
 } from "@/features/admin/hooks/use-admin";
 import { useAdminStore } from "@/features/admin/stores/admin-store";
+import type { AdminUser } from "@/features/admin/types";
 import { ApiError } from "@/lib/api/errors";
 import { formatDate } from "@/lib/utils/format";
 
@@ -32,8 +49,19 @@ function matchesSearch(haystack: string, search: string) {
   return haystack.toLowerCase().includes(search.trim().toLowerCase());
 }
 
+function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="border-border bg-card rounded-xl border p-5">
+      <p className="text-muted-foreground text-xs uppercase tracking-wide">{label}</p>
+      <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
+      {hint ? <p className="text-muted-foreground mt-1 text-xs">{hint}</p> : null}
+    </div>
+  );
+}
+
 export function AdminWorkspace() {
   const { tab, setTab, search, setSearch } = useAdminStore();
+  const overview = useAdminOverview();
   const users = useAdminUsers();
   const orgs = useAdminOrganizations();
   const subs = useAdminSubscriptions();
@@ -41,11 +69,26 @@ export function AdminWorkspace() {
   const aiUsage = useAdminAiUsage();
   const audit = useAdminAuditLogs();
   const settings = useAdminSettings();
+  const createUser = useCreateAdminUser();
+  const updateUser = useUpdateAdminUser();
+  const updateSettings = useUpdateAdminSettings();
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [passwordUser, setPasswordUser] = useState<AdminUser | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+    firstName: "",
+    lastName: "",
+    isStaff: false,
+    isSuperuser: false,
+  });
 
   const forbidden =
     (users.error instanceof ApiError && users.error.isForbidden) ||
     (orgs.error instanceof ApiError && orgs.error.isForbidden) ||
-    (settings.error instanceof ApiError && settings.error.isForbidden);
+    (overview.error instanceof ApiError && overview.error.isForbidden);
 
   if (forbidden) {
     return (
@@ -54,7 +97,7 @@ export function AdminWorkspace() {
         <EmptyState
           icon={Shield}
           title="Staff access required"
-          description="You don’t have permission to view platform admin tools."
+          description="You don’t have permission to view platform admin tools. Sign in with a staff/superuser account created via createsuperuser."
         />
       </div>
     );
@@ -63,8 +106,14 @@ export function AdminWorkspace() {
   return (
     <div>
       <PageHeader
-        title="Admin"
-        description="Users, organizations, subscriptions, payments, and platform settings."
+        title="Platform Admin"
+        description="Monitor the system, manage users, and control platform settings."
+        actions={
+          <Button type="button" onClick={() => setCreateOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create user
+          </Button>
+        }
       />
 
       <div className="mb-4">
@@ -78,6 +127,7 @@ export function AdminWorkspace() {
 
       <Tabs value={tab} onValueChange={(value) => setTab(value as typeof tab)}>
         <TabsList className="flex h-auto flex-wrap">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="organizations">Organizations</TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
@@ -87,15 +137,61 @@ export function AdminWorkspace() {
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="overview" className="mt-4 space-y-4">
+          {overview.isLoading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                label="Users"
+                value={String(overview.data?.users ?? 0)}
+                hint={`${overview.data?.staffUsers ?? 0} staff`}
+              />
+              <StatCard label="Organizations" value={String(overview.data?.organizations ?? 0)} />
+              <StatCard
+                label="Active subscriptions"
+                value={String(overview.data?.activeSubscriptions ?? 0)}
+                hint={`MRR $${((overview.data?.mrrCents ?? 0) / 100 || 0).toFixed(0)}`}
+              />
+              <StatCard
+                label="AI tokens"
+                value={(overview.data?.aiTokens ?? 0).toLocaleString()}
+                hint={`Revenue $${((overview.data?.revenueCents ?? 0) / 100 || 0).toFixed(0)}`}
+              />
+            </div>
+          )}
+          <div className="border-border bg-card grid gap-3 rounded-xl border p-5 sm:grid-cols-2">
+            <div className="flex items-start gap-3">
+              <Users className="text-muted-foreground mt-0.5 h-5 w-5" />
+              <div>
+                <p className="font-medium">User operations</p>
+                <p className="text-muted-foreground text-sm">
+                  Create accounts, grant staff access, reset passwords, and deactivate users.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <Building2 className="text-muted-foreground mt-0.5 h-5 w-5" />
+              <div>
+                <p className="font-medium">Tenant monitoring</p>
+                <p className="text-muted-foreground text-sm">
+                  Review organizations, billing state, AI usage, and audit activity.
+                </p>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+
         <TabsContent value="users">
           <AdminTable loading={users.isLoading}>
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Staff</TableHead>
+                <TableHead>Roles</TableHead>
                 <TableHead>Active</TableHead>
                 <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -105,9 +201,54 @@ export function AdminWorkspace() {
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.fullName}</TableCell>
                     <TableCell>{u.email}</TableCell>
-                    <TableCell>{u.isStaff ? "Yes" : "No"}</TableCell>
+                    <TableCell className="space-x-1">
+                      {u.isSuperuser ? <Badge>Superuser</Badge> : null}
+                      {u.isStaff ? <Badge variant="secondary">Staff</Badge> : null}
+                      {!u.isStaff && !u.isSuperuser ? (
+                        <span className="text-muted-foreground text-sm">User</span>
+                      ) : null}
+                    </TableCell>
                     <TableCell>{u.isActive ? "Yes" : "No"}</TableCell>
                     <TableCell>{formatDate(u.createdAt, "PP")}</TableCell>
+                    <TableCell className="space-x-2 text-right">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          updateUser.mutate({
+                            id: u.id,
+                            input: { isStaff: !u.isStaff },
+                          })
+                        }
+                      >
+                        {u.isStaff ? "Revoke staff" : "Make staff"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          updateUser.mutate({
+                            id: u.id,
+                            input: { isActive: !u.isActive },
+                          })
+                        }
+                      >
+                        {u.isActive ? "Deactivate" : "Activate"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setPasswordUser(u);
+                          setNewPassword("");
+                        }}
+                      >
+                        Set password
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
             </TableBody>
@@ -185,7 +326,7 @@ export function AdminWorkspace() {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.organizationName}</TableCell>
                     <TableCell>
-                      {p.currency} {p.amount.toFixed(2)}
+                      {p.currency} {Number(p.amount || 0).toFixed(2)}
                     </TableCell>
                     <TableCell>{p.status}</TableCell>
                     <TableCell>{formatDate(p.createdAt, "PP")}</TableCell>
@@ -253,25 +394,189 @@ export function AdminWorkspace() {
           {settings.isLoading ? (
             <Skeleton className="h-40 w-full" />
           ) : settings.data ? (
-            <dl className="border-border bg-card grid max-w-lg gap-4 rounded-xl border p-5 sm:grid-cols-2">
-              <div>
-                <dt className="text-muted-foreground text-xs uppercase">Maintenance mode</dt>
-                <dd className="mt-1 font-medium">{settings.data.maintenanceMode ? "On" : "Off"}</dd>
+            <div className="border-border bg-card max-w-lg space-y-5 rounded-xl border p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium">Maintenance mode</p>
+                  <p className="text-muted-foreground text-sm">
+                    Block non-staff access when enabled.
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.data.maintenanceMode}
+                  onCheckedChange={(checked) => updateSettings.mutate({ maintenanceMode: checked })}
+                />
               </div>
-              <div>
-                <dt className="text-muted-foreground text-xs uppercase">Signup enabled</dt>
-                <dd className="mt-1 font-medium">{settings.data.signupEnabled ? "Yes" : "No"}</dd>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium">Public signup</p>
+                  <p className="text-muted-foreground text-sm">Allow new users to self-register.</p>
+                </div>
+                <Switch
+                  checked={settings.data.signupEnabled}
+                  onCheckedChange={(checked) => updateSettings.mutate({ signupEnabled: checked })}
+                />
               </div>
-              <div className="sm:col-span-2">
-                <dt className="text-muted-foreground text-xs uppercase">Default plan</dt>
-                <dd className="mt-1 font-medium">{settings.data.defaultPlan}</dd>
+              <div className="space-y-2">
+                <Label htmlFor="default-plan">Default plan</Label>
+                <Input
+                  id="default-plan"
+                  defaultValue={settings.data.defaultPlan}
+                  onBlur={(e) => {
+                    const value = e.target.value.trim();
+                    if (value && value !== settings.data?.defaultPlan) {
+                      updateSettings.mutate({ defaultPlan: value });
+                    }
+                  }}
+                />
               </div>
-            </dl>
+            </div>
           ) : (
             <p className="text-muted-foreground text-sm">Settings unavailable.</p>
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create user</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="admin-first">First name</Label>
+                <Input
+                  id="admin-first"
+                  value={form.firstName}
+                  onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-last">Last name</Label>
+                <Input
+                  id="admin-last"
+                  value={form.lastName}
+                  onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="admin-email">Email</Label>
+              <Input
+                id="admin-email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="admin-password">Password</Label>
+              <Input
+                id="admin-password"
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="admin-staff">Staff access</Label>
+              <Switch
+                id="admin-staff"
+                checked={form.isStaff}
+                onCheckedChange={(checked) => setForm((f) => ({ ...f, isStaff: checked }))}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="admin-super">Superuser</Label>
+              <Switch
+                id="admin-super"
+                checked={form.isSuperuser}
+                onCheckedChange={(checked) =>
+                  setForm((f) => ({ ...f, isSuperuser: checked, isStaff: checked || f.isStaff }))
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!form.email || form.password.length < 8 || createUser.isPending}
+              onClick={() => {
+                createUser.mutate(
+                  {
+                    email: form.email,
+                    password: form.password,
+                    firstName: form.firstName,
+                    lastName: form.lastName,
+                    isStaff: form.isStaff,
+                    isSuperuser: form.isSuperuser,
+                  },
+                  {
+                    onSuccess: () => {
+                      setCreateOpen(false);
+                      setForm({
+                        email: "",
+                        password: "",
+                        firstName: "",
+                        lastName: "",
+                        isStaff: false,
+                        isSuperuser: false,
+                      });
+                      setTab("users");
+                    },
+                  },
+                );
+              }}
+            >
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(passwordUser)} onOpenChange={(open) => !open && setPasswordUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set password for {passwordUser?.email}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="set-password">New password</Label>
+            <Input
+              id="set-password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPasswordUser(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={newPassword.length < 8 || updateUser.isPending || !passwordUser}
+              onClick={() => {
+                if (!passwordUser) return;
+                updateUser.mutate(
+                  { id: passwordUser.id, input: { password: newPassword } },
+                  {
+                    onSuccess: () => {
+                      setPasswordUser(null);
+                      setNewPassword("");
+                    },
+                  },
+                );
+              }}
+            >
+              Save password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -279,7 +584,7 @@ export function AdminWorkspace() {
 function AdminTable({ loading, children }: { loading: boolean; children: React.ReactNode }) {
   if (loading) return <Skeleton className="mt-4 h-48 w-full" />;
   return (
-    <div className="border-border bg-card mt-4 rounded-xl border">
+    <div className="border-border bg-card mt-4 overflow-x-auto rounded-xl border">
       <Table>{children}</Table>
     </div>
   );

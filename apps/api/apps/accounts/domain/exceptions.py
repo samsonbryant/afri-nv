@@ -18,3 +18,8 @@ class EmailAlreadyExistsError(ConflictError):
 class InvalidCredentialsError(DomainError):
     default_message = "Invalid email or password."
     code = "invalid_credentials"
+
+
+class InvalidPasswordError(DomainError):
+    default_message = "Current password is incorrect."
+    code = "invalid_password"

@@ -4,19 +4,34 @@ from __future__ import annotations
 
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.application.dto import LoginDTO, RegisterUserDTO
+from apps.accounts.application.dto import (
+    ChangePasswordDTO,
+    LoginDTO,
+    RegisterUserDTO,
+    UpdateProfileDTO,
+)
 from apps.accounts.infrastructure.dependencies import get_auth_service
 from apps.accounts.interfaces.serializers.serializers import (
+    ChangePasswordSerializer,
     LoginSerializer,
     RegisterSerializer,
     TokenPairSerializer,
+    UpdateProfileSerializer,
     UserSerializer,
 )
+
+
+def _absolute_avatar(request: Request, user_data: dict) -> dict:
+    avatar = user_data.get("avatar")
+    if avatar and isinstance(avatar, str) and avatar.startswith("/"):
+        user_data = {**user_data, "avatar": request.build_absolute_uri(avatar)}
+    return user_data
 
 
 class RegisterView(APIView):
@@ -43,7 +58,7 @@ class RegisterView(APIView):
         )
         return Response(
             {
-                "user": UserSerializer(user).data,
+                "user": _absolute_avatar(request, UserSerializer(user).data),
                 "tokens": TokenPairSerializer(tokens).data,
             },
             status=status.HTTP_201_CREATED,
@@ -67,7 +82,7 @@ class LoginView(APIView):
         user, tokens = service.login(LoginDTO(email=data["email"], password=data["password"]))
         return Response(
             {
-                "user": UserSerializer(user).data,
+                "user": _absolute_avatar(request, UserSerializer(user).data),
                 "tokens": TokenPairSerializer(tokens).data,
             }
         )
@@ -97,4 +112,53 @@ class MeView(APIView):
     def get(self, request: Request) -> Response:
         service = get_auth_service()
         user = service.get_me(request.user.id)
-        return Response(UserSerializer(user).data)
+        return Response(_absolute_avatar(request, UserSerializer(user).data))
+
+    @extend_schema(request=UpdateProfileSerializer, responses={200: UserSerializer}, tags=["auth"])
+    def patch(self, request: Request) -> Response:
+        serializer = UpdateProfileSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        service = get_auth_service()
+        user = service.update_profile(
+            request.user.id,
+            UpdateProfileDTO(
+                first_name=data.get("first_name"),
+                last_name=data.get("last_name"),
+            ),
+        )
+        return Response(_absolute_avatar(request, UserSerializer(user).data))
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(request=ChangePasswordSerializer, tags=["auth"])
+    def post(self, request: Request) -> Response:
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        get_auth_service().change_password(
+            request.user.id,
+            ChangePasswordDTO(
+                current_password=data["current_password"],
+                new_password=data["new_password"],
+            ),
+        )
+        return Response({"detail": "Password updated."})
+
+
+class AvatarUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    @extend_schema(responses={200: UserSerializer}, tags=["auth"])
+    def post(self, request: Request) -> Response:
+        file = request.FILES.get("avatar") or request.FILES.get("file")
+        if file is None:
+            return Response(
+                {"error": {"code": "validation_error", "message": "avatar file is required"}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user = get_auth_service().update_avatar(request.user.id, file)
+        return Response(_absolute_avatar(request, UserSerializer(user).data))

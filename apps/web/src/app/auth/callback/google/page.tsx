@@ -49,7 +49,13 @@ export default function GoogleCallbackPage() {
         if (response.organization?.id) {
           useOrganizationsStore.getState().setActiveOrganizationId(response.organization.id);
         }
-        router.replace(response.organization ? ROUTES.dashboard : ROUTES.onboarding);
+        router.replace(
+          response.user.isStaff || response.user.isSuperuser
+            ? ROUTES.admin
+            : response.organization
+              ? ROUTES.dashboard
+              : ROUTES.onboarding,
+        );
       } catch (err) {
         if (!cancelled) setError(getErrorMessage(err));
       }

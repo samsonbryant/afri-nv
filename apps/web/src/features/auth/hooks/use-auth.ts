@@ -73,6 +73,11 @@ function handleTwoFactorRequired(error: unknown, router: ReturnType<typeof useRo
   return false;
 }
 
+function postAuthRoute(data: AuthResponse): string {
+  if (data.user.isStaff || data.user.isSuperuser) return ROUTES.admin;
+  return data.organization ? ROUTES.dashboard : ROUTES.onboarding;
+}
+
 export function useLogin() {
   const router = useRouter();
 
@@ -85,7 +90,7 @@ export function useLogin() {
     onSuccess: (data) => {
       applySession(data);
       toast.success("Welcome back");
-      router.push(data.organization ? ROUTES.dashboard : ROUTES.onboarding);
+      router.push(postAuthRoute(data));
     },
     onError: (error) => {
       if (handleTwoFactorRequired(error, router)) return;
@@ -111,7 +116,7 @@ export function useRegister() {
     onSuccess: (data) => {
       applySession(data);
       toast.success("Account created");
-      router.push(data.organization ? ROUTES.dashboard : ROUTES.onboarding);
+      router.push(postAuthRoute(data));
     },
     onError: (error) => {
       toast.error(getErrorMessage(error));
@@ -175,7 +180,7 @@ export function useVerifyTwoFactor() {
     onSuccess: (data) => {
       applySession(data);
       toast.success("Verified");
-      router.push(data.organization ? ROUTES.dashboard : ROUTES.onboarding);
+      router.push(postAuthRoute(data));
     },
     onError: (error) => {
       toast.error(getErrorMessage(error));
@@ -314,7 +319,7 @@ export function useSocialAuth() {
       if (!data) return;
       applySession(data);
       toast.success("Welcome");
-      router.push(data.organization ? ROUTES.dashboard : ROUTES.onboarding);
+      router.push(postAuthRoute(data));
     },
     onError: (error) => {
       toast.error(getErrorMessage(error));

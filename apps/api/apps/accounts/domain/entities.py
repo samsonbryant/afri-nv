@@ -14,6 +14,8 @@ class UserEntity:
     first_name: str
     last_name: str
     is_active: bool
+    is_staff: bool
+    is_superuser: bool
     avatar: str | None
     created_at: datetime
     updated_at: datetime

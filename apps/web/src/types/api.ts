@@ -15,7 +15,12 @@ export type User = {
   id: string;
   email: string;
   fullName: string;
+  firstName?: string;
+  lastName?: string;
   avatarUrl?: string | null;
+  isStaff?: boolean;
+  isSuperuser?: boolean;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 };

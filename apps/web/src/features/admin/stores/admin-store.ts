@@ -1,9 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-
-type AdminTab =
-  "users" | "organizations" | "subscriptions" | "payments" | "ai-usage" | "audit-logs" | "settings";
+import type { AdminTab } from "@/features/admin/types";
 
 type AdminStore = {
   tab: AdminTab;
@@ -13,7 +11,7 @@ type AdminStore = {
 };
 
 export const useAdminStore = create<AdminStore>((set) => ({
-  tab: "users",
+  tab: "overview",
   setTab: (tab) => set({ tab }),
   search: "",
   setSearch: (search) => set({ search }),

@@ -64,6 +64,7 @@ export const ROUTES = {
 } as const;
 
 export const NAV_ITEMS = [
+  { title: "Admin", href: ROUTES.admin, icon: "ShieldCheck", staffOnly: true },
   { title: "Dashboard", href: ROUTES.dashboard, icon: "LayoutDashboard" },
   { title: "Assistant", href: ROUTES.assistant, icon: "Sparkles" },
   { title: "Workflows", href: ROUTES.workflows, icon: "GitBranch" },

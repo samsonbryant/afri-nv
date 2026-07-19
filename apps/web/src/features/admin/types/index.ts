@@ -1,13 +1,24 @@
 export type AdminTab =
-  "users" | "organizations" | "subscriptions" | "payments" | "ai-usage" | "audit-logs" | "settings";
+  | "overview"
+  | "users"
+  | "organizations"
+  | "subscriptions"
+  | "payments"
+  | "ai-usage"
+  | "audit-logs"
+  | "settings";
 
 export type AdminUser = {
   id: string;
   fullName: string;
   email: string;
+  firstName?: string;
+  lastName?: string;
   isStaff: boolean;
+  isSuperuser: boolean;
   isActive: boolean;
   createdAt: string;
+  lastLoginAt?: string | null;
 };
 
 export type AdminOrganization = {
@@ -59,4 +70,33 @@ export type AdminPlatformSettings = {
   maintenanceMode: boolean;
   signupEnabled: boolean;
   defaultPlan: string;
+};
+
+export type AdminOverview = {
+  users: number;
+  organizations: number;
+  activeSubscriptions: number;
+  staffUsers: number;
+  mrrCents: number;
+  revenueCents: number;
+  aiTokens: number;
+};
+
+export type CreateAdminUserInput = {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  isStaff?: boolean;
+  isSuperuser?: boolean;
+  isActive?: boolean;
+};
+
+export type UpdateAdminUserInput = {
+  firstName?: string;
+  lastName?: string;
+  isStaff?: boolean;
+  isSuperuser?: boolean;
+  isActive?: boolean;
+  password?: string;
 };

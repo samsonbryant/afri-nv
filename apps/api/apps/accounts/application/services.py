@@ -5,18 +5,22 @@ from __future__ import annotations
 from uuid import UUID
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import UploadedFile
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.application.dto import (
+    ChangePasswordDTO,
     LoginDTO,
     RegisterUserDTO,
     TokenPairDTO,
+    UpdateProfileDTO,
     UserDTO,
 )
 from apps.accounts.domain.entities import UserEntity
 from apps.accounts.domain.exceptions import (
     EmailAlreadyExistsError,
     InvalidCredentialsError,
+    InvalidPasswordError,
     UserNotFoundError,
 )
 from apps.accounts.domain.repositories import AbstractUserRepository
@@ -55,6 +59,26 @@ class AuthService:
             raise UserNotFoundError()
         return self._to_dto(user)
 
+    def update_profile(self, user_id: UUID, data: UpdateProfileDTO) -> UserDTO:
+        user = self._users.get_by_id(user_id)
+        if user is None:
+            raise UserNotFoundError()
+        if data.first_name is not None:
+            user.first_name = data.first_name
+        if data.last_name is not None:
+            user.last_name = data.last_name
+        return self._to_dto(self._users.update(user))
+
+    def change_password(self, user_id: UUID, data: ChangePasswordDTO) -> None:
+        if not self._users.check_password(user_id, data.current_password):
+            raise InvalidPasswordError()
+        self._users.set_password(user_id, data.new_password)
+
+    def update_avatar(self, user_id: UUID, file: UploadedFile) -> UserDTO:
+        if self._users.get_by_id(user_id) is None:
+            raise UserNotFoundError()
+        return self._to_dto(self._users.set_avatar(user_id, file))
+
     def refresh(self, refresh_token: str) -> TokenPairDTO:
         from rest_framework_simplejwt.exceptions import TokenError
 
@@ -90,6 +114,8 @@ class AuthService:
             last_name=user.last_name,
             avatar=user.avatar,
             is_active=user.is_active,
+            is_staff=user.is_staff,
+            is_superuser=user.is_superuser,
             created_at=user.created_at,
             updated_at=user.updated_at,
         )

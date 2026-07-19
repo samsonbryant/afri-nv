@@ -1,19 +1,26 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
+  createAdminUser,
   fetchAdminAiUsage,
   fetchAdminAuditLogs,
   fetchAdminOrganizations,
+  fetchAdminOverview,
   fetchAdminPayments,
   fetchAdminSettings,
   fetchAdminSubscriptions,
   fetchAdminUsers,
+  updateAdminSettings,
+  updateAdminUser,
 } from "@/features/admin/api/admin-api";
-import { ApiError } from "@/lib/api/errors";
+import type { CreateAdminUserInput, UpdateAdminUserInput } from "@/features/admin/types";
+import { ApiError, getErrorMessage } from "@/lib/api/errors";
 
 export const adminKeys = {
   all: ["admin"] as const,
+  overview: () => [...adminKeys.all, "overview"] as const,
   users: () => [...adminKeys.all, "users"] as const,
   organizations: () => [...adminKeys.all, "organizations"] as const,
   subscriptions: () => [...adminKeys.all, "subscriptions"] as const,
@@ -39,6 +46,10 @@ function useAdminQuery<T>(key: readonly unknown[], queryFn: () => Promise<T>) {
       return failureCount < 1;
     },
   });
+}
+
+export function useAdminOverview() {
+  return useAdminQuery(adminKeys.overview(), fetchAdminOverview);
 }
 
 export function useAdminUsers() {
@@ -67,4 +78,43 @@ export function useAdminAuditLogs() {
 
 export function useAdminSettings() {
   return useAdminQuery(adminKeys.settings(), fetchAdminSettings);
+}
+
+export function useCreateAdminUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateAdminUserInput) => createAdminUser(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: adminKeys.users() });
+      void qc.invalidateQueries({ queryKey: adminKeys.overview() });
+      toast.success("User created");
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+}
+
+export function useUpdateAdminUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateAdminUserInput }) =>
+      updateAdminUser(id, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: adminKeys.users() });
+      void qc.invalidateQueries({ queryKey: adminKeys.overview() });
+      toast.success("User updated");
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+}
+
+export function useUpdateAdminSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: updateAdminSettings,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: adminKeys.settings() });
+      toast.success("Settings saved");
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
 }
