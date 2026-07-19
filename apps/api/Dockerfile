@@ -79,7 +79,10 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --chown=novixa:novixa . /app/
 
-RUN chmod +x /app/scripts/entrypoint.sh
+# Entrypoint runs collectstatic as non-root; directory must be writable.
+RUN mkdir -p /app/staticfiles /app/media \
+    && chown -R novixa:novixa /app/staticfiles /app/media \
+    && chmod +x /app/scripts/entrypoint.sh
 
 USER novixa
 
