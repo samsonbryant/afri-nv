@@ -87,11 +87,11 @@ NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=...
 NEXT_PUBLIC_GITHUB_OAUTH_CLIENT_ID=...
 ```
 
-**ISP / Orange Liberia note:** Lonestar MTN and Orange GSM can load the Vercel frontend, but Orange often cannot reach Render (`*.onrender.com`). The web app therefore calls same-origin `/api/v1`, `/media`, etc.; Next.js rewrites those to `API_PROXY_TARGET` on Vercel’s network. Do **not** set `NEXT_PUBLIC_API_URL` to the raw Render URL in production—browsers on Orange would fail. If an older deploy still has the Render URL baked in, the client auto-switches to `/api/v1` when the host is `onrender.com` (unless `NEXT_PUBLIC_USE_API_PROXY=false`).
+**ISP / Orange Liberia note:** Lonestar MTN and Orange GSM can load the Vercel frontend, but Orange often cannot reach Render (`*.onrender.com`). The web app therefore calls same-origin `/api/v1` and `/media`; App Router handlers on Vercel proxy those to `API_PROXY_TARGET` over HTTPS (do not use Next rewrites — they forward the Vercel `Host` and trip Django `SECURE_SSL_REDIRECT` into a redirect loop). Do **not** set `NEXT_PUBLIC_API_URL` to the raw Render URL in production.
 
-`API_PROXY_TARGET` is server-only (build/runtime on Vercel). After changing these, redeploy the Vercel project so the Next bundle and rewrites pick them up.
+`API_PROXY_TARGET` is server-only (available to Route Handlers at runtime). After changing these, redeploy the Vercel project.
 
-The Next app sets `skipTrailingSlashRedirect: true` so Django’s trailing-slash URLs (`/api/v1/.../`) are not 308’d by Vercel into a redirect loop with Django `APPEND_SLASH`.
+The Next app sets `skipTrailingSlashRedirect: true` so Django-style `/api/v1/.../` paths are preserved.
 Deploy via the Vercel dashboard (import GitHub repo, root `apps/web`) or:
 
 ```bash

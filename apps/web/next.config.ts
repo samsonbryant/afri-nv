@@ -31,29 +31,11 @@ const securityHeaders = [
   },
 ];
 
-/** Origin of the Django API for server-side rewrites (never exposed to the browser). */
-function resolveApiProxyTarget(): string | null {
-  const explicit = (process.env.API_PROXY_TARGET ?? "").trim().replace(/\/+$/, "");
-  if (explicit) return explicit;
-
-  const publicApi = (process.env.NEXT_PUBLIC_API_URL ?? "").trim();
-  if (!publicApi || publicApi.startsWith("/")) return null;
-  try {
-    const url = new URL(publicApi.includes("://") ? publicApi : `https://${publicApi}`);
-    return url.origin;
-  } catch {
-    return null;
-  }
-}
-
-const apiProxyTarget = resolveApiProxyTarget();
-
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
   poweredByHeader: false,
-  // Django APPEND_SLASH expects trailing slashes. Next's default 308 (strip slash)
-  // + Django's 301 (add slash) caused ERR_TOO_MANY_REDIRECTS on /api/v1/* via the proxy.
+  // Django/DRF use trailing slashes; keep them so /api/v1/* route handlers match.
   skipTrailingSlashRedirect: true,
   images: {
     formats: ["image/avif", "image/webp"],
@@ -80,39 +62,8 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  /**
-   * Same-origin proxy so browsers (esp. Orange Liberia) never dial Render directly.
-   * Client calls `/api/v1/...` on the Vercel host; Next rewrites to the Django origin.
-   */
-  async rewrites() {
-    if (!apiProxyTarget) return [];
-    return [
-      {
-        source: "/api/v1/:path*",
-        destination: `${apiProxyTarget}/api/v1/:path*`,
-      },
-      {
-        source: "/api/docs",
-        destination: `${apiProxyTarget}/api/docs/`,
-      },
-      {
-        source: "/api/docs/:path*",
-        destination: `${apiProxyTarget}/api/docs/:path*`,
-      },
-      {
-        source: "/graphql",
-        destination: `${apiProxyTarget}/graphql/`,
-      },
-      {
-        source: "/graphql/:path*",
-        destination: `${apiProxyTarget}/graphql/:path*`,
-      },
-      {
-        source: "/media/:path*",
-        destination: `${apiProxyTarget}/media/:path*`,
-      },
-    ];
-  },
+  // API + media are proxied by App Router handlers under /api/v1 and /media
+  // (rewrites to Render forwarded the Vercel Host and caused SECURE_SSL_REDIRECT loops).
 };
 
 export default nextConfig;
