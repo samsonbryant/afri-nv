@@ -34,6 +34,10 @@ elif (BASE_DIR / ".env").exists():
 SECRET_KEY = env("SECRET_KEY", default="insecure-dev-secret-key-change-me")
 DEBUG = env.bool("DEBUG", default=False)
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+# Render injects this for every web service; health checks use the public hostname.
+_render_hostname = env("RENDER_EXTERNAL_HOSTNAME", default="")
+if _render_hostname and _render_hostname not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_render_hostname)
 
 DJANGO_APPS = [
     "django.contrib.admin",

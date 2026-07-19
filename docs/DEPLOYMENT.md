@@ -37,7 +37,7 @@ SENTRY_DSN=...
 SOCIAL_AUTH_STUB=False
 ```
 
-`SECRET_KEY`, `DATABASE_URL`, Redis URLs, and `JWT_SIGNING_KEY` are provided by the blueprint.
+`ALLOWED_HOSTS` defaults in the blueprint; the API also auto-appends Render’s `RENDER_EXTERNAL_HOSTNAME` so health checks pass even if the env var is empty. `SECRET_KEY`, `DATABASE_URL`, Redis URLs, and `JWT_SIGNING_KEY` are provided by the blueprint.
 
 4. After first deploy, open the API shell or one-off job and run:
 
