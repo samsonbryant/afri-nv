@@ -293,6 +293,9 @@ AI_DEFAULT_PROVIDER = env("AI_DEFAULT_PROVIDER", default="openai")
 AI_DEFAULT_MODEL = env("AI_DEFAULT_MODEL", default="gpt-4o-mini")
 # Cap completion size so low-credit OpenRouter accounts are not blocked by model max (e.g. 16384).
 AI_MAX_TOKENS = env.int("AI_MAX_TOKENS", default=1024)
+# Free org plan: monthly AI request cap and short completion budget
+FREE_AI_REQUEST_LIMIT = env.int("FREE_AI_REQUEST_LIMIT", default=5)
+FREE_AI_MAX_TOKENS = env.int("FREE_AI_MAX_TOKENS", default=180)
 EMBEDDING_MODEL = env("EMBEDDING_MODEL", default="text-embedding-3-small")
 EMBEDDING_DIMENSIONS = env.int("EMBEDDING_DIMENSIONS", default=1536)
 

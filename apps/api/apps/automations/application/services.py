@@ -100,7 +100,11 @@ class AutomationService:
         try:
             workflow = self._workflows.get_by_id(run.workflow_id)
             definition = workflow.definition if workflow is not None else {}
-            output = self._execute_workflow(definition, run.input_payload)
+            output = self._execute_workflow(
+                definition,
+                run.input_payload,
+                organization_id=run.organization_id,
+            )
             run.status = AutomationRunStatus.SUCCEEDED.value
             run.output_payload = output
             run.error_message = ""
@@ -118,11 +122,18 @@ class AutomationService:
 
     @staticmethod
     def _execute_workflow(
-        definition: dict[str, Any] | None, payload: dict[str, Any]
+        definition: dict[str, Any] | None,
+        payload: dict[str, Any],
+        *,
+        organization_id: UUID | None = None,
     ) -> dict[str, Any]:
         from apps.workflows.application.executor import execute_workflow_definition
 
-        return execute_workflow_definition(definition, payload)
+        return execute_workflow_definition(
+            definition,
+            payload,
+            organization_id=str(organization_id) if organization_id else None,
+        )
 
     @staticmethod
     def _to_dto(run: AutomationRunEntity) -> AutomationRunDTO:

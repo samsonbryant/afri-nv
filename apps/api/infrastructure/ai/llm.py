@@ -11,13 +11,27 @@ logger = logging.getLogger("infrastructure.ai")
 
 
 class LLMProvider(Protocol):
-    def complete(self, prompt: str, *, system: str = "", temperature: float = 0.4) -> str: ...
+    def complete(
+        self,
+        prompt: str,
+        *,
+        system: str = "",
+        temperature: float = 0.4,
+        max_tokens: int | None = None,
+    ) -> str: ...
 
 
 class StubLLMProvider:
     """Deterministic stub responses when OpenAI is unavailable."""
 
-    def complete(self, prompt: str, *, system: str = "", temperature: float = 0.4) -> str:
+    def complete(
+        self,
+        prompt: str,
+        *,
+        system: str = "",
+        temperature: float = 0.4,
+        max_tokens: int | None = None,
+    ) -> str:
         preview = prompt.strip().replace("\n", " ")[:280]
         context = system.strip()[:120] if system else "Novixa AI"
         return (
@@ -56,16 +70,28 @@ class OpenAILLMProvider:
         self.client = get_openai_client(api_key)
         self.model = resolve_chat_model(model)
 
-    def complete(self, prompt: str, *, system: str = "", temperature: float = 0.4) -> str:
+    def complete(
+        self,
+        prompt: str,
+        *,
+        system: str = "",
+        temperature: float = 0.4,
+        max_tokens: int | None = None,
+    ) -> str:
         messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
+        limit = (
+            max_tokens
+            if max_tokens is not None
+            else int(getattr(settings, "AI_MAX_TOKENS", 1024) or 1024)
+        )
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=temperature,
-            max_tokens=int(getattr(settings, "AI_MAX_TOKENS", 1024) or 1024),
+            max_tokens=limit,
         )
         return completion.choices[0].message.content or ""
 
@@ -84,15 +110,43 @@ class LLMService:
             )
         return StubLLMProvider()
 
-    def complete(self, prompt: str, *, system: str = "", temperature: float = 0.4) -> str:
+    def complete(
+        self,
+        prompt: str,
+        *,
+        system: str = "",
+        temperature: float = 0.4,
+        max_tokens: int | None = None,
+        organization_id: str | None = None,
+    ) -> str:
+        from infrastructure.ai.quota import (
+            blocked_upgrade_reply,
+            evaluate_free_tier,
+            minimize_free_reply,
+        )
+
+        tier = evaluate_free_tier(organization_id) if organization_id else None
+        if tier and tier.is_free and not tier.allowed:
+            return blocked_upgrade_reply(prompt[:120])
+
+        tokens = max_tokens
+        if tokens is None and tier is not None:
+            tokens = tier.max_tokens
+
         try:
-            return self._provider.complete(prompt, system=system, temperature=temperature)
+            text = self._provider.complete(
+                prompt, system=system, temperature=temperature, max_tokens=tokens
+            )
         except Exception as exc:
             logger.exception("LLM completion failed; using stub fallback.")
             return (
                 f"{_openai_failure_message(exc)}\n\n"
                 f"Prompt preview: {prompt.strip().replace(chr(10), ' ')[:200]}"
             )
+
+        if tier and tier.is_free:
+            return minimize_free_reply(text, remaining=max(0, tier.remaining - 1))
+        return text
 
 
 _llm_service: LLMService | None = None
@@ -111,6 +165,19 @@ def reset_llm_service() -> None:
     _llm_service = None
 
 
-def complete(prompt: str, *, system: str = "", temperature: float = 0.4) -> str:
+def complete(
+    prompt: str,
+    *,
+    system: str = "",
+    temperature: float = 0.4,
+    max_tokens: int | None = None,
+    organization_id: str | None = None,
+) -> str:
     """Convenience wrapper for one-shot completions."""
-    return get_llm_service().complete(prompt, system=system, temperature=temperature)
+    return get_llm_service().complete(
+        prompt,
+        system=system,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        organization_id=organization_id,
+    )

@@ -194,18 +194,33 @@ class KnowledgeService:
             }
             for c in chunks
         ]
-        context = (
-            "\n\n".join(f"[{i + 1}] {c.content}" for i, c in enumerate(chunks))
-            or "(No knowledge chunks available.)"
+        from infrastructure.ai.quota import (
+            blocked_upgrade_reply,
+            evaluate_free_tier,
+            record_ai_usage,
         )
-        answer = complete(
-            f"Question: {data.content}\n\nContext:\n{context}\n\n"
-            "Answer using the context. Cite sources as [1], [2], etc.",
-            system=(
+
+        tier = evaluate_free_tier(conversation.organization_id)
+        if tier.is_free and not tier.allowed:
+            answer = blocked_upgrade_reply(data.content)
+        else:
+            context = (
+                "\n\n".join(f"[{i + 1}] {c.content}" for i, c in enumerate(chunks))
+                or "(No knowledge chunks available.)"
+            )
+            system = (
                 "You are a knowledge-base assistant for Novixa. "
                 "Answer only from the provided context when possible."
-            ),
-        )
+            )
+            if tier.is_free:
+                system += " Keep the answer under 3 short sentences."
+            answer = complete(
+                f"Question: {data.content}\n\nContext:\n{context}\n\n"
+                "Answer using the context. Cite sources as [1], [2], etc.",
+                system=system,
+                organization_id=str(conversation.organization_id),
+                max_tokens=tier.max_tokens,
+            )
 
         assistant_message = KnowledgeMessage.objects.create(
             conversation=conversation,
@@ -217,6 +232,12 @@ class KnowledgeService:
         if conversation.title == "New conversation":
             conversation.title = data.content.strip()[:80]
         conversation.save(update_fields=["title", "updated_at"])
+
+        record_ai_usage(
+            conversation.organization_id,
+            tokens=max(10, len(answer.split())),
+            feature="knowledge",
+        )
 
         return SendMessageResultDTO(
             user_message=self._message_dto(user_message),

@@ -22,7 +22,6 @@ from apps.assistant.application.dto import (
 )
 from apps.assistant.domain.exceptions import ConversationNotFoundError, EmptyMessageError
 from apps.assistant.infrastructure.models import Conversation, Message
-from apps.dashboard.infrastructure.models import AiUsageRecord
 from apps.organizations.domain.exceptions import NotOrganizationMemberError
 from apps.organizations.domain.repositories import AbstractMembershipRepository
 
@@ -121,11 +120,13 @@ class AssistantService:
             conversation.title = data.content.strip()[:80]
         conversation.save(update_fields=["title", "updated_at"])
 
-        AiUsageRecord.objects.create(
-            organization_id=conversation.organization_id,
+        from infrastructure.ai.quota import record_ai_usage
+
+        record_ai_usage(
+            conversation.organization_id,
             tokens=tokens,
-            model=getattr(settings, "AI_DEFAULT_MODEL", "stub"),
             feature="assistant",
+            model=getattr(settings, "AI_DEFAULT_MODEL", "gpt-4o-mini"),
         )
 
         return SendMessageResultDTO(
@@ -150,11 +151,27 @@ class AssistantService:
     def _generate_reply(
         self, conversation: Conversation, user_content: str
     ) -> tuple[str, list[dict], int]:
+        from infrastructure.ai.quota import (
+            blocked_upgrade_reply,
+            evaluate_free_tier,
+            minimize_free_reply,
+        )
+
+        tier = evaluate_free_tier(conversation.organization_id)
+        if tier.is_free and not tier.allowed:
+            reply = blocked_upgrade_reply(user_content)
+            return reply, [], max(10, len(reply.split()))
+
         api_key = getattr(settings, "OPENAI_API_KEY", "") or ""
         openai_error: str | None = None
         if api_key:
             try:
-                return self._openai_reply(conversation, user_content, api_key)
+                content, citations, tokens = self._openai_reply(
+                    conversation, user_content, api_key, max_tokens=tier.max_tokens
+                )
+                if tier.is_free:
+                    content = minimize_free_reply(content, remaining=max(0, tier.remaining - 1))
+                return content, citations, tokens
             except Exception as exc:
                 logger.exception("OpenAI reply failed; falling back to stub.")
                 openai_error = _format_openai_error(exc)
@@ -189,35 +206,37 @@ class AssistantService:
             )
         else:
             reply = (
-                f"Here's a helpful response to your question.\n\n"
-                f"> You asked: {user_content.strip()[:280]}\n\n"
-                f"### Suggested next steps\n"
-                f"1. Review your workflows\n"
-                f"2. Check recent automation runs\n"
-                f"3. Add documents to the knowledge base\n\n"
-                f"I can refine this further if you share more context."
+                f"Quick take: {user_content.strip()[:160] or 'your question'}. "
+                f"I can go deeper once you upgrade."
             )
-        approx_tokens = max(50, len(user_content.split()) + len(reply.split()))
+        if tier.is_free:
+            reply = minimize_free_reply(reply, remaining=max(0, tier.remaining - 1))
+        approx_tokens = max(20, len(user_content.split()) + len(reply.split()))
         return reply, citations, approx_tokens
 
     def _openai_reply(
-        self, conversation: Conversation, user_content: str, api_key: str
+        self,
+        conversation: Conversation,
+        user_content: str,
+        api_key: str,
+        *,
+        max_tokens: int,
     ) -> tuple[str, list[dict], int]:
         from infrastructure.ai.client import get_openai_client, resolve_chat_model
 
         client = get_openai_client(api_key)
+        # Free tier: keep history short to stay within the small completion budget.
+        history_limit = 6 if max_tokens <= 256 else 20
         history = list(
-            Message.objects.filter(conversation=conversation).order_by("created_at")[:20]
+            Message.objects.filter(conversation=conversation).order_by("created_at")[:history_limit]
         )
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "You are Novixa, an AI business operating system assistant. "
-                    "Reply in markdown. Include practical next steps when useful."
-                ),
-            }
-        ]
+        system = "You are Novixa, an AI business operating system assistant. Reply in markdown."
+        if max_tokens <= 256:
+            system += " Keep answers under 3 short sentences. No long lists."
+        else:
+            system += " Include practical next steps when useful."
+
+        messages = [{"role": "system", "content": system}]
         for msg in history:
             if msg.role in ("user", "assistant", "system"):
                 messages.append({"role": msg.role, "content": msg.content})
@@ -227,7 +246,7 @@ class AssistantService:
             model=resolve_chat_model(getattr(settings, "AI_DEFAULT_MODEL", "gpt-4o-mini")),
             messages=messages,
             temperature=0.4,
-            max_tokens=int(getattr(settings, "AI_MAX_TOKENS", 1024) or 1024),
+            max_tokens=max_tokens,
         )
         content = completion.choices[0].message.content or ""
         usage = getattr(completion, "usage", None)

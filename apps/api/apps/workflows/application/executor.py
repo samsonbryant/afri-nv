@@ -56,19 +56,24 @@ def _topo_order(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> lis
     return ordered
 
 
-def _run_ai(prompt: str, context: dict[str, Any]) -> str:
+def _run_ai(prompt: str, context: dict[str, Any], organization_id: str | None = None) -> str:
     from infrastructure.ai.llm import complete
+    from infrastructure.ai.quota import record_ai_usage
 
     payload_preview = json.dumps(context, default=str)[:1500]
     full_prompt = (
         f"{prompt.strip() or 'Summarize the workflow input and suggest next steps.'}\n\n"
         f"Context JSON:\n{payload_preview}"
     )
-    return complete(
+    text = complete(
         full_prompt,
         system="You are Novixa workflow AI. Reply in concise markdown.",
         temperature=0.4,
+        organization_id=organization_id,
     )
+    if organization_id:
+        record_ai_usage(organization_id, tokens=max(10, len(text.split())), feature="workflow")
+    return text
 
 
 def _run_http(config: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
@@ -97,6 +102,8 @@ def _run_http(config: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]
 def execute_workflow_definition(
     definition: dict[str, Any] | None,
     input_payload: dict[str, Any] | None = None,
+    *,
+    organization_id: str | None = None,
 ) -> dict[str, Any]:
     """Walk the workflow graph and execute action nodes."""
     definition = definition if isinstance(definition, dict) else {}
@@ -136,7 +143,7 @@ def execute_workflow_definition(
                 step["result"] = {"ok": True, "trigger": subtype or "trigger"}
             elif subtype in {"ai", "ai_generate"} or (kind == "action" and "ai" in subtype):
                 prompt = str(config.get("prompt") or data.get("description") or label)
-                text = _run_ai(prompt, context)
+                text = _run_ai(prompt, context, organization_id=organization_id)
                 step["result"] = {"text": text}
                 context["last_ai"] = text
             elif subtype in {"http_request", "http"}:
