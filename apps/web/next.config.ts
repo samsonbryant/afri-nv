@@ -31,6 +31,23 @@ const securityHeaders = [
   },
 ];
 
+/** Origin of the Django API for server-side rewrites (never exposed to the browser). */
+function resolveApiProxyTarget(): string | null {
+  const explicit = (process.env.API_PROXY_TARGET ?? "").trim().replace(/\/+$/, "");
+  if (explicit) return explicit;
+
+  const publicApi = (process.env.NEXT_PUBLIC_API_URL ?? "").trim();
+  if (!publicApi || publicApi.startsWith("/")) return null;
+  try {
+    const url = new URL(publicApi.includes("://") ? publicApi : `https://${publicApi}`);
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+const apiProxyTarget = resolveApiProxyTarget();
+
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
@@ -42,6 +59,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**.novixa.ai",
       },
+      {
+        protocol: "https",
+        hostname: "**.onrender.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.vercel.app",
+      },
     ],
   },
   async headers() {
@@ -52,13 +77,36 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  /**
+   * Same-origin proxy so browsers (esp. Orange Liberia) never dial Render directly.
+   * Client calls `/api/v1/...` on the Vercel host; Next rewrites to the Django origin.
+   */
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) return [];
+    if (!apiProxyTarget) return [];
     return [
       {
-        source: "/backend/:path*",
-        destination: `${apiUrl}/:path*`,
+        source: "/api/v1/:path*",
+        destination: `${apiProxyTarget}/api/v1/:path*`,
+      },
+      {
+        source: "/api/docs",
+        destination: `${apiProxyTarget}/api/docs/`,
+      },
+      {
+        source: "/api/docs/:path*",
+        destination: `${apiProxyTarget}/api/docs/:path*`,
+      },
+      {
+        source: "/graphql",
+        destination: `${apiProxyTarget}/graphql/`,
+      },
+      {
+        source: "/graphql/:path*",
+        destination: `${apiProxyTarget}/graphql/:path*`,
+      },
+      {
+        source: "/media/:path*",
+        destination: `${apiProxyTarget}/media/:path*`,
       },
     ];
   },

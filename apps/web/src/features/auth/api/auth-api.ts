@@ -2,6 +2,7 @@ import { api } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import { ApiError } from "@/lib/api/errors";
 import { unwrapList } from "@/lib/api/org";
+import { toSameOriginAssetUrl } from "@/lib/constants";
 import type { AuthResponse, Organization, User } from "@/types/api";
 import type { LoginCredentials, RegisterCredentials } from "@/features/auth/types";
 
@@ -58,7 +59,9 @@ export function normalizeUser(raw: RawUser): User {
     fullName,
     firstName: first || undefined,
     lastName: last || undefined,
-    avatarUrl: (raw.avatarUrl ?? raw.avatar_url ?? raw.avatar ?? null) as string | null,
+    avatarUrl: toSameOriginAssetUrl(
+      (raw.avatarUrl ?? raw.avatar_url ?? raw.avatar ?? null) as string | null,
+    ),
     isStaff: Boolean(raw.isStaff ?? raw.is_staff),
     isSuperuser: Boolean(raw.isSuperuser ?? raw.is_superuser),
     isActive:

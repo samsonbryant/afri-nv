@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/features/auth/stores/auth-store";
 import { ApiError } from "@/lib/api/errors";
-import { API_URL, AUTH_STORAGE_KEY } from "@/lib/constants";
+import { API_URL, APP_URL, AUTH_STORAGE_KEY } from "@/lib/constants";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -15,7 +15,16 @@ export type ApiClientOptions = {
   skipAuth?: boolean;
 };
 
-const DEFAULT_BASE = API_URL;
+/** Absolute API base (relative `/api/v1` becomes APP_URL + path for SSR/fetch). */
+function resolveRequestBase(): string {
+  const base = API_URL.replace(/\/$/, "");
+  if (base.startsWith("http://") || base.startsWith("https://")) return base;
+  if (typeof window !== "undefined") return base;
+  const app = APP_URL.replace(/\/$/, "");
+  return `${app}${base.startsWith("/") ? base : `/${base}`}`;
+}
+
+const DEFAULT_BASE = resolveRequestBase;
 
 function readPersistedAccessToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -102,7 +111,7 @@ async function refreshAccessToken(): Promise<string | null> {
   const refresh = getRefreshToken();
   if (!refresh || refresh.startsWith("demo-")) return null;
 
-  const url = `${DEFAULT_BASE.replace(/\/$/, "")}/auth/refresh/`;
+  const url = `${DEFAULT_BASE().replace(/\/$/, "")}/auth/refresh/`;
   try {
     const response = await fetch(url, {
       method: "POST",
@@ -157,7 +166,7 @@ export async function apiClient<T>(path: string, options: ApiClientOptions = {})
 
   const url = path.startsWith("http")
     ? path
-    : `${DEFAULT_BASE.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+    : `${DEFAULT_BASE().replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
 
   const doFetch = async (authHeader: string | null) => {
     const h = new Headers(headers);

@@ -13,9 +13,35 @@ export function normalizeApiBaseUrl(raw: string): string {
   return `${trimmed}/api/v1`;
 }
 
-export const API_URL = normalizeApiBaseUrl(
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1",
-);
+/**
+ * Browser-facing API base.
+ *
+ * On some Liberian ISPs (notably Orange GSM) Render hosts are unreachable while
+ * Vercel works. Prefer the same-origin `/api/v1` proxy whenever the configured
+ * API points at Render, or when NEXT_PUBLIC_USE_API_PROXY=true.
+ */
+export function resolvePublicApiUrl(raw?: string): string {
+  const value = (raw ?? process.env.NEXT_PUBLIC_API_URL ?? "").trim();
+  const forceProxy = process.env.NEXT_PUBLIC_USE_API_PROXY === "true";
+  const disableProxy = process.env.NEXT_PUBLIC_USE_API_PROXY === "false";
+
+  if (!value) {
+    return forceProxy ? "/api/v1" : "http://localhost:8000/api/v1";
+  }
+  if (value.startsWith("/")) {
+    return normalizeApiBaseUrl(value);
+  }
+  if (forceProxy) {
+    return "/api/v1";
+  }
+  // Auto-proxy Render URLs so Orange/Lonestar users never hit onrender.com
+  if (!disableProxy && /onrender\.com/i.test(value)) {
+    return "/api/v1";
+  }
+  return normalizeApiBaseUrl(value);
+}
+
+export const API_URL = resolvePublicApiUrl();
 
 /**
  * Demo / offline fixtures. Keep false for production and local API testing.
@@ -25,6 +51,24 @@ export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
 
 export function isDemoMode(): boolean {
   return DEMO_MODE;
+}
+
+/**
+ * Rewrite absolute backend asset URLs (e.g. avatars on Render) to same-origin
+ * paths so media loads through the Vercel proxy on restricted ISPs.
+ */
+export function toSameOriginAssetUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("/")) return url;
+  try {
+    const parsed = new URL(url);
+    if (parsed.pathname.startsWith("/media/") || /onrender\.com$/i.test(parsed.hostname)) {
+      return `${parsed.pathname}${parsed.search}`;
+    }
+  } catch {
+    return url;
+  }
+  return url;
 }
 
 /** Bumped when JWT signing secrets change so stale browser sessions are discarded. */

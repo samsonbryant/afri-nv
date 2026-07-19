@@ -80,13 +80,16 @@ Root `prepare` skips Husky when `CI` or `VERCEL` is set, so installs do not fail
 
 ```
 NEXT_PUBLIC_APP_URL=https://novixa-omega.vercel.app
-NEXT_PUBLIC_API_URL=https://novixa-api.onrender.com/api/v1
+NEXT_PUBLIC_API_URL=/api/v1
+API_PROXY_TARGET=https://novixa-api.onrender.com
 NEXT_PUBLIC_APP_NAME=Novixa
 NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=...
 NEXT_PUBLIC_GITHUB_OAUTH_CLIENT_ID=...
 ```
 
-`NEXT_PUBLIC_API_URL` must include `/api/v1` (the client also appends it if missing). After changing these, redeploy the Vercel project so the Next bundle picks them up.
+**ISP / Orange Liberia note:** Lonestar MTN and Orange GSM can load the Vercel frontend, but Orange often cannot reach Render (`*.onrender.com`). The web app therefore calls same-origin `/api/v1`, `/media`, etc.; Next.js rewrites those to `API_PROXY_TARGET` on Vercel’s network. Do **not** set `NEXT_PUBLIC_API_URL` to the raw Render URL in production—browsers on Orange would fail. If an older deploy still has the Render URL baked in, the client auto-switches to `/api/v1` when the host is `onrender.com` (unless `NEXT_PUBLIC_USE_API_PROXY=false`).
+
+`API_PROXY_TARGET` is server-only (build/runtime on Vercel). After changing these, redeploy the Vercel project so the Next bundle and rewrites pick them up.
 Deploy via the Vercel dashboard (import GitHub repo, root `apps/web`) or:
 
 ```bash
@@ -99,11 +102,12 @@ npx vercel --prod
 
 ## 3. CORS / OAuth checklist
 
-1. Note Render API HTTPS URL.
-2. Note Vercel HTTPS URL.
-3. Set Render `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS`, `FRONTEND_URL` to the Vercel URL.
+1. Note Render API HTTPS URL (used only as `API_PROXY_TARGET` on Vercel).
+2. Note Vercel HTTPS URL (what users and OAuth providers hit).
+3. Set Render `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS`, `FRONTEND_URL` to the Vercel URL (still needed for any direct API tooling).
 4. Point Google/GitHub OAuth redirect URIs at the Vercel domain (`/auth/callback/google`, `/auth/callback/github`).
-5. Smoke test: register, login, social (if configured), `/api/docs/`.
+5. Smoke test on **both** Lonestar and Orange: register, login, billing, avatar upload. Confirm Network tab shows API calls to `novixa-omega.vercel.app/api/v1/...`, not `onrender.com`.
+6. Optional: open `https://novixa-omega.vercel.app/api/v1/health/` — should proxy through to Django.
 
 ---
 
