@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -534,6 +535,7 @@ export function AdminWorkspace() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create user</DialogTitle>
+            <DialogDescription>Add a new account and optional staff access.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="grid gap-2 sm:grid-cols-2">
@@ -635,6 +637,7 @@ export function AdminWorkspace() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Set password for {passwordUser?.email}</DialogTitle>
+            <DialogDescription>Choose a new password for this user.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
             <Label htmlFor="set-password">New password</Label>

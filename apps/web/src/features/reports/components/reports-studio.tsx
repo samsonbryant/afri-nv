@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -234,6 +235,7 @@ export function ReportsStudio() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Generate report</DialogTitle>
+            <DialogDescription>Choose a report type and generation options.</DialogDescription>
           </DialogHeader>
           <form
             className="space-y-4"

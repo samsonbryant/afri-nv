@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -270,12 +271,14 @@ export function DeveloperConsole() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create API key</DialogTitle>
+            <DialogDescription>
+              {lastCreatedSecret
+                ? "Copy this secret now — it will not be shown again."
+                : "Name this key so you can recognize it later."}
+            </DialogDescription>
           </DialogHeader>
           {lastCreatedSecret ? (
             <div className="space-y-3">
-              <p className="text-muted-foreground text-sm">
-                Copy this secret now — it won’t be shown again.
-              </p>
               <div className="flex gap-2">
                 <Input readOnly value={lastCreatedSecret} />
                 <Button variant="outline" onClick={() => copy(lastCreatedSecret, "Secret copied")}>
@@ -319,6 +322,9 @@ export function DeveloperConsole() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add webhook endpoint</DialogTitle>
+            <DialogDescription>
+              Novixa will POST event payloads to this HTTPS URL.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">

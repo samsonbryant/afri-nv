@@ -24,7 +24,13 @@ import {
   Zap,
 } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
 import { cn } from "@/lib/utils/cn";
 import { NAV_ITEMS, ROUTES } from "@/lib/constants";
@@ -63,6 +69,7 @@ export function MobileNav() {
       <SheetContent side="left" className="w-[280px] p-0">
         <SheetHeader className="border-border border-b px-4 py-4 text-left">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SheetDescription className="sr-only">Primary app sections</SheetDescription>
           <Logo href={ROUTES.dashboard} size="sm" />
         </SheetHeader>
         <nav

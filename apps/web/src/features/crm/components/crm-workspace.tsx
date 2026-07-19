@@ -22,6 +22,7 @@ import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -267,6 +268,7 @@ function CreateOpportunityDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Opportunity</DialogTitle>
+          <DialogDescription>Add a deal to the pipeline.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
@@ -442,6 +444,7 @@ function CreateCompanyDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Company</DialogTitle>
+          <DialogDescription>Create a company record for your CRM.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
@@ -632,6 +635,7 @@ function CreateContactDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Contact</DialogTitle>
+          <DialogDescription>Add a person and link them to a company.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -835,6 +839,7 @@ function CreateLeadDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Lead</DialogTitle>
+          <DialogDescription>Capture a lead to follow up later.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">

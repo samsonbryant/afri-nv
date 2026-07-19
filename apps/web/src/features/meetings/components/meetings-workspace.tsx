@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -252,6 +253,7 @@ export function MeetingsWorkspace() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Schedule meeting</DialogTitle>
+            <DialogDescription>Create a meeting and generate a join link.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">

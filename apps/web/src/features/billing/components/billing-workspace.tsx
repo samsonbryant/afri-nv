@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -325,11 +326,14 @@ export function BillingWorkspace() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Pay for {selectedPlan?.name}</DialogTitle>
+            <DialogDescription>
+              Send payment via mobile money, then submit your transaction details for admin
+              approval.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-muted-foreground text-sm">
-              Send <strong>{localAmountLabel}</strong> (≈ ${selectedPlan?.priceMonthly}/mo) via
-              mobile money, then submit your transaction details for admin approval.
+              Amount: <strong>{localAmountLabel}</strong> (≈ ${selectedPlan?.priceMonthly}/mo).
             </p>
             <div className="flex gap-2">
               <Button

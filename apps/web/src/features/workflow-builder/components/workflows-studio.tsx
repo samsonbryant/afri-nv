@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -115,6 +116,9 @@ export function WorkflowsStudio() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create workflow</DialogTitle>
+            <DialogDescription>
+              Name your workflow to start building in the studio.
+            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">

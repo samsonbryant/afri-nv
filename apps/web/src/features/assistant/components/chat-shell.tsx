@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { MessageList } from "@/features/assistant/components/message-list";
 import { MessageInput } from "@/features/assistant/components/message-input";
 import { ConversationSidebar } from "@/features/assistant/components/conversation-sidebar";
@@ -42,6 +48,7 @@ export function ChatShell() {
           <SheetContent side="left" className="w-[300px] p-0">
             <SheetHeader className="sr-only">
               <SheetTitle>Conversations</SheetTitle>
+              <SheetDescription>Browse and open assistant conversations.</SheetDescription>
             </SheetHeader>
             <ConversationSidebar onSelect={() => setMobileOpen(false)} />
           </SheetContent>
