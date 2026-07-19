@@ -26,9 +26,9 @@
 
 ```
 ALLOWED_HOSTS=novixa-api.onrender.com
-CORS_ALLOWED_ORIGINS=https://your-app.vercel.app
-CSRF_TRUSTED_ORIGINS=https://your-app.vercel.app
-FRONTEND_URL=https://your-app.vercel.app
+CORS_ALLOWED_ORIGINS=https://novixa-omega.vercel.app
+CSRF_TRUSTED_ORIGINS=https://novixa-omega.vercel.app
+FRONTEND_URL=https://novixa-omega.vercel.app
 OPENAI_API_KEY=...
 GOOGLE_OAUTH_CLIENT_ID=...
 GITHUB_OAUTH_CLIENT_ID=...
@@ -37,7 +37,7 @@ SENTRY_DSN=...
 SOCIAL_AUTH_STUB=False
 ```
 
-`ALLOWED_HOSTS` defaults in the blueprint; the API also auto-appends Render’s `RENDER_EXTERNAL_HOSTNAME` so health checks pass even if the env var is empty. `SECRET_KEY`, `DATABASE_URL`, Redis URLs, and `JWT_SIGNING_KEY` are provided by the blueprint.
+`ALLOWED_HOSTS` defaults in the blueprint; the API also auto-appends Render’s `RENDER_EXTERNAL_HOSTNAME` so health checks pass even if the env var is empty. Blank `CORS_*` / `CSRF_*` values are ignored, and `FRONTEND_URL` is always merged into both. `SECRET_KEY`, `DATABASE_URL`, Redis URLs, and `JWT_SIGNING_KEY` are provided by the blueprint.
 
 4. After first deploy, open the API shell or one-off job and run:
 
@@ -73,13 +73,14 @@ Root `prepare` skips Husky when `CI` or `VERCEL` is set, so installs do not fail
 ### Vercel environment variables
 
 ```
-NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
+NEXT_PUBLIC_APP_URL=https://novixa-omega.vercel.app
 NEXT_PUBLIC_API_URL=https://novixa-api.onrender.com/api/v1
 NEXT_PUBLIC_APP_NAME=Novixa
 NEXT_PUBLIC_GOOGLE_OAUTH_CLIENT_ID=...
 NEXT_PUBLIC_GITHUB_OAUTH_CLIENT_ID=...
 ```
 
+`NEXT_PUBLIC_API_URL` must include `/api/v1` (the client also appends it if missing). After changing these, redeploy the Vercel project so the Next bundle picks them up.
 Deploy via the Vercel dashboard (import GitHub repo, root `apps/web`) or:
 
 ```bash

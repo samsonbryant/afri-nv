@@ -5,7 +5,17 @@ export const APP_DESCRIPTION =
 
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+/** Ensure API base always includes the Django `/api/v1` prefix. */
+export function normalizeApiBaseUrl(raw: string): string {
+  const trimmed = raw.trim().replace(/\/+$/, "");
+  if (!trimmed) return "http://localhost:8000/api/v1";
+  if (/\/api\/v1$/i.test(trimmed)) return trimmed;
+  return `${trimmed}/api/v1`;
+}
+
+export const API_URL = normalizeApiBaseUrl(
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1",
+);
 
 /**
  * Demo / offline fixtures. Keep false for production and local API testing.

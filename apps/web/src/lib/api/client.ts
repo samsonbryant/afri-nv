@@ -1,6 +1,6 @@
 import { useAuthStore } from "@/features/auth/stores/auth-store";
 import { ApiError } from "@/lib/api/errors";
-import { AUTH_STORAGE_KEY } from "@/lib/constants";
+import { API_URL, AUTH_STORAGE_KEY } from "@/lib/constants";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -15,7 +15,7 @@ export type ApiClientOptions = {
   skipAuth?: boolean;
 };
 
-const DEFAULT_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+const DEFAULT_BASE = API_URL;
 
 function readPersistedAccessToken(): string | null {
   if (typeof window === "undefined") return null;
