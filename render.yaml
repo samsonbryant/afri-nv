@@ -1,6 +1,8 @@
 # =============================================================================
 # Render Blueprint — Novixa
 # https://render.com/docs/blueprint-spec
+#
+# Backend only (API + Celery + Redis + Postgres). Frontend deploys on Vercel.
 # =============================================================================
 services:
   - type: web
@@ -47,21 +49,13 @@ services:
         sync: false
       - key: CSRF_TRUSTED_ORIGINS
         sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: SOCIAL_AUTH_STUB
+        value: "False"
       - fromGroup: novixa-secrets
 
-  - type: web
-    name: novixa-web
-    runtime: docker
-    dockerfilePath: ./apps/web/Dockerfile
-    dockerContext: ./apps/web
-    plan: starter
-    envVars:
-      - key: NEXT_PUBLIC_APP_NAME
-        value: Novixa
-      - key: NEXT_PUBLIC_API_URL
-        sync: false
-      - key: NEXT_PUBLIC_APP_URL
-        sync: false
+  # Frontend is deployed on Vercel (apps/web), not Render.
 
   - type: worker
     name: novixa-celery
@@ -104,7 +98,9 @@ services:
 
 databases:
   - name: novixa-db
-    plan: starter
+    # Legacy "starter" Postgres plans are no longer valid for new DBs.
+    # Current options: free | basic-256mb | basic-1gb | basic-4gb | pro-*
+    plan: basic-256mb
     postgresMajorVersion: "16"
     databaseName: novixa
     user: novixa
@@ -113,6 +109,8 @@ envVarGroups:
   - name: novixa-secrets
     envVars:
       - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false

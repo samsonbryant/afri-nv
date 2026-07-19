@@ -14,7 +14,9 @@
 - `novixa-api` — Django (Docker)
 - `novixa-celery` — Celery worker
 - `novixa-redis` — Redis
-- `novixa-db` — Postgres 16 (`DATABASE_URL` wired automatically)
+- `novixa-db` — Postgres 16 on plan `basic-256mb` (`DATABASE_URL` wired automatically)
+
+> Postgres plan must be a current type (`free`, `basic-256mb`, `basic-1gb`, …). Legacy `starter` is rejected for new databases.
 
 ### Deploy
 
