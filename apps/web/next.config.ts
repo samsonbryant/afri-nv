@@ -52,6 +52,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
   poweredByHeader: false,
+  // Django APPEND_SLASH expects trailing slashes. Next's default 308 (strip slash)
+  // + Django's 301 (add slash) caused ERR_TOO_MANY_REDIRECTS on /api/v1/* via the proxy.
+  skipTrailingSlashRedirect: true,
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
