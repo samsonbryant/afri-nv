@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api/errors";
 import type {
   AdminAiUsage,
   AdminAuditLog,
+  AdminManualPayment,
   AdminOrganization,
   AdminOverview,
   AdminPayment,
@@ -319,4 +320,65 @@ export async function updateAdminSettings(
     });
   }
   return fetchAdminSettings();
+}
+
+function mapManualPayment(raw: Record<string, unknown>): AdminManualPayment {
+  return {
+    id: String(raw.id),
+    organizationName: pickString(raw, "organizationName", "organization_name") || "Organization",
+    planName: pickString(raw, "planName", "plan_name", "plan_code") || "Plan",
+    provider: pickString(raw, "provider") || "mtn_momo",
+    status: pickString(raw, "status") || "pending",
+    amountCents: pickNumber(raw, "amountCents", "amount_cents"),
+    currency: pickString(raw, "currency") || "xaf",
+    reference: pickString(raw, "reference"),
+    payerPhone: pickString(raw, "payerPhone", "payer_phone"),
+    transactionId: pickString(raw, "transactionId", "transaction_id"),
+    requestedByEmail: pickString(raw, "requestedByEmail", "requested_by_email") || undefined,
+    createdAt: pickIso(raw, "createdAt", "created_at"),
+  };
+}
+
+export async function fetchAdminManualPayments(status?: string): Promise<AdminManualPayment[]> {
+  if (isDemoMode()) {
+    return [
+      {
+        id: "mp1",
+        organizationName: "Acme Corp",
+        planName: "Pro",
+        provider: "mtn_momo",
+        status: "submitted",
+        amountCents: 5940000,
+        currency: "xaf",
+        reference: "NVX-DEMO01",
+        payerPhone: "670000000",
+        transactionId: "TXN123",
+        requestedByEmail: "owner@acme.com",
+        createdAt: new Date().toISOString(),
+      },
+    ];
+  }
+  const path = status
+    ? `${API_ENDPOINTS.admin.manualPayments}?status=${encodeURIComponent(status)}`
+    : API_ENDPOINTS.admin.manualPayments;
+  const list = await getList(path);
+  return list.map(mapManualPayment);
+}
+
+export async function approveAdminManualPayment(id: string): Promise<AdminManualPayment> {
+  const raw = await api.post<Record<string, unknown>>(
+    API_ENDPOINTS.admin.approveManualPayment(id),
+    {},
+  );
+  return mapManualPayment(raw);
+}
+
+export async function rejectAdminManualPayment(
+  id: string,
+  reason = "",
+): Promise<AdminManualPayment> {
+  const raw = await api.post<Record<string, unknown>>(API_ENDPOINTS.admin.rejectManualPayment(id), {
+    reason,
+  });
+  return mapManualPayment(raw);
 }

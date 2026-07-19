@@ -8,6 +8,21 @@ export type AdminTab =
   | "audit-logs"
   | "settings";
 
+export type AdminManualPayment = {
+  id: string;
+  organizationName: string;
+  planName: string;
+  provider: string;
+  status: string;
+  amountCents: number;
+  currency: string;
+  reference: string;
+  payerPhone: string;
+  transactionId: string;
+  requestedByEmail?: string;
+  createdAt: string;
+};
+
 export type AdminUser = {
   id: string;
   fullName: string;

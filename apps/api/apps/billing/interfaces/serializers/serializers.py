@@ -68,3 +68,24 @@ class UsageSerializer(serializers.Serializer):
     quantity = serializers.IntegerField()
     period_start = serializers.DateTimeField()
     period_end = serializers.DateTimeField()
+
+
+class ManualPaymentCreateSerializer(serializers.Serializer):
+    organization_id = serializers.UUIDField()
+    plan_code = serializers.CharField()
+    provider = serializers.ChoiceField(choices=["mtn_momo", "orange_money"])
+    payer_phone = serializers.CharField(required=False, allow_blank=True, default="")
+    payer_name = serializers.CharField(required=False, allow_blank=True, default="")
+    transaction_id = serializers.CharField(required=False, allow_blank=True, default="")
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class ManualPaymentSubmitSerializer(serializers.Serializer):
+    payer_phone = serializers.CharField()
+    payer_name = serializers.CharField(required=False, allow_blank=True, default="")
+    transaction_id = serializers.CharField()
+    notes = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class ManualPaymentRejectSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, default="")

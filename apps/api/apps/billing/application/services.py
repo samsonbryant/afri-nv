@@ -10,12 +10,15 @@ from django.utils import timezone
 from apps.billing.application.dto import InvoiceDTO, PlanDTO, SubscriptionDTO, UsageDTO
 from apps.billing.domain.exceptions import (
     CouponInvalidError,
+    PaymentRequestInvalidError,
+    PaymentRequestNotFoundError,
     PlanNotFoundError,
 )
 from apps.billing.infrastructure.models import (
     Coupon,
     Invoice,
     PaymentEvent,
+    PaymentRequest,
     Plan,
     Subscription,
     UsageRecord,
@@ -23,6 +26,7 @@ from apps.billing.infrastructure.models import (
 from apps.organizations.domain.entities import MembershipRole
 from apps.organizations.domain.exceptions import InsufficientRoleError, NotOrganizationMemberError
 from apps.organizations.domain.repositories import AbstractMembershipRepository
+from apps.organizations.infrastructure.models import Organization
 from infrastructure.external.dodo import DodoPaymentsClient
 
 DEFAULT_PLANS = [
@@ -237,6 +241,272 @@ class BillingService:
         event.processed_at = timezone.now()
         event.save(update_fields=["processed_at", "updated_at"])
         return {"received": True, "event_id": str(event.id)}
+
+    def manual_payment_instructions(self) -> dict:
+        from django.conf import settings
+
+        return {
+            "currency": getattr(settings, "MANUAL_PAYMENT_CURRENCY", "xaf"),
+            "usd_to_local_rate": getattr(settings, "MANUAL_PAYMENT_USD_TO_LOCAL_RATE", 600),
+            "providers": [
+                {
+                    "id": PaymentRequest.Provider.MTN_MOMO,
+                    "name": "MTN Mobile Money",
+                    "number": getattr(settings, "MTN_MOMO_NUMBER", "") or "",
+                    "account_name": getattr(settings, "MTN_MOMO_ACCOUNT_NAME", "Novixa"),
+                },
+                {
+                    "id": PaymentRequest.Provider.ORANGE_MONEY,
+                    "name": "Orange Money",
+                    "number": getattr(settings, "ORANGE_MONEY_NUMBER", "") or "",
+                    "account_name": getattr(settings, "ORANGE_MONEY_ACCOUNT_NAME", "Novixa"),
+                },
+            ],
+            "steps": [
+                "Choose a plan and payment method (MTN MoMo or Orange Money).",
+                "Send the exact amount to the merchant number shown, using the payment reference as the transfer note.",
+                "Submit your payer phone number and MoMo/Orange transaction ID.",
+                "A Novixa admin will verify the payment and activate your package.",
+            ],
+        }
+
+    def create_manual_payment(
+        self,
+        actor_id: UUID,
+        *,
+        organization_id: UUID,
+        plan_code: str,
+        provider: str,
+        payer_phone: str,
+        payer_name: str = "",
+        transaction_id: str = "",
+        notes: str = "",
+    ) -> dict:
+        self._require_owner_or_admin(actor_id, organization_id)
+        self.seed_plans()
+        try:
+            plan = Plan.objects.get(code=plan_code, is_active=True)
+        except Plan.DoesNotExist as exc:
+            raise PlanNotFoundError() from exc
+        if provider not in {p.value for p in PaymentRequest.Provider}:
+            raise PaymentRequestInvalidError("Unsupported payment provider.")
+
+        from django.conf import settings
+
+        rate = int(getattr(settings, "MANUAL_PAYMENT_USD_TO_LOCAL_RATE", 600) or 600)
+        currency = getattr(settings, "MANUAL_PAYMENT_CURRENCY", "xaf")
+        # Plans are stored in USD cents; convert to local currency major units * 100.
+        local_amount_cents = round((plan.amount_cents / 100) * rate * 100)
+        reference = f"NVX-{uuid4().hex[:8].upper()}"
+
+        # Cancel older open requests for this org so only one is in flight.
+        PaymentRequest.objects.filter(
+            organization_id=organization_id,
+            status__in=[PaymentRequest.Status.PENDING, PaymentRequest.Status.SUBMITTED],
+        ).update(status=PaymentRequest.Status.CANCELLED)
+
+        status = (
+            PaymentRequest.Status.SUBMITTED
+            if payer_phone.strip() and transaction_id.strip()
+            else PaymentRequest.Status.PENDING
+        )
+        req = PaymentRequest.objects.create(
+            organization_id=organization_id,
+            plan=plan,
+            provider=provider,
+            status=status,
+            amount_cents=local_amount_cents,
+            currency=currency,
+            reference=reference,
+            payer_phone=payer_phone.strip(),
+            payer_name=payer_name.strip(),
+            transaction_id=transaction_id.strip(),
+            notes=notes.strip(),
+            requested_by_id=actor_id,
+        )
+        return self._payment_request_dict(req)
+
+    def submit_manual_payment(
+        self,
+        actor_id: UUID,
+        request_id: UUID,
+        *,
+        payer_phone: str,
+        payer_name: str = "",
+        transaction_id: str = "",
+        notes: str = "",
+    ) -> dict:
+        try:
+            req = PaymentRequest.objects.select_related("plan", "organization").get(pk=request_id)
+        except PaymentRequest.DoesNotExist as exc:
+            raise PaymentRequestNotFoundError() from exc
+        self._require_owner_or_admin(actor_id, req.organization_id)
+        if req.status not in {PaymentRequest.Status.PENDING, PaymentRequest.Status.SUBMITTED}:
+            raise PaymentRequestInvalidError("Only pending payments can be updated.")
+        if not payer_phone.strip() or not transaction_id.strip():
+            raise PaymentRequestInvalidError("payer_phone and transaction_id are required.")
+        req.payer_phone = payer_phone.strip()
+        req.payer_name = payer_name.strip()
+        req.transaction_id = transaction_id.strip()
+        if notes.strip():
+            req.notes = notes.strip()
+        req.status = PaymentRequest.Status.SUBMITTED
+        req.save(
+            update_fields=[
+                "payer_phone",
+                "payer_name",
+                "transaction_id",
+                "notes",
+                "status",
+                "updated_at",
+            ]
+        )
+        return self._payment_request_dict(req)
+
+    def list_manual_payments(self, actor_id: UUID, organization_id: UUID) -> list[dict]:
+        self._require_member(actor_id, organization_id)
+        qs = PaymentRequest.objects.filter(organization_id=organization_id).select_related("plan")
+        return [self._payment_request_dict(r) for r in qs[:100]]
+
+    def list_all_manual_payments(self, *, status: str | None = None) -> list[dict]:
+        qs = PaymentRequest.objects.select_related("plan", "organization", "requested_by").order_by(
+            "-created_at"
+        )
+        if status:
+            qs = qs.filter(status=status)
+        return [self._payment_request_dict(r, include_org=True) for r in qs[:200]]
+
+    def approve_manual_payment(self, admin_id: UUID, request_id: UUID) -> dict:
+        try:
+            req = PaymentRequest.objects.select_related("plan", "organization").get(pk=request_id)
+        except PaymentRequest.DoesNotExist as exc:
+            raise PaymentRequestNotFoundError() from exc
+        if req.status not in {PaymentRequest.Status.PENDING, PaymentRequest.Status.SUBMITTED}:
+            raise PaymentRequestInvalidError("Only pending/submitted payments can be approved.")
+
+        now = timezone.now()
+        # Cancel other active/trialing subs for this org.
+        Subscription.objects.filter(organization_id=req.organization_id).exclude(
+            status=Subscription.Status.CANCELLED
+        ).update(status=Subscription.Status.CANCELLED)
+
+        sub = Subscription.objects.create(
+            organization_id=req.organization_id,
+            plan=req.plan,
+            status=Subscription.Status.ACTIVE,
+            dodo_subscription_id="",
+            current_period_start=now,
+            current_period_end=now + timedelta(days=30),
+            trial_end=None,
+        )
+        Invoice.objects.create(
+            organization_id=req.organization_id,
+            subscription=sub,
+            number=f"INV-MM-{uuid4().hex[:10].upper()}",
+            amount_cents=req.amount_cents,
+            tax_cents=0,
+            status=Invoice.Status.PAID,
+            hosted_url="",
+            pdf_url="",
+            issued_at=now,
+            paid_at=now,
+        )
+        PaymentEvent.objects.create(
+            provider=req.provider,
+            event_type="payment.approved",
+            payload={
+                "payment_request_id": str(req.id),
+                "reference": req.reference,
+                "transaction_id": req.transaction_id,
+                "organization_id": str(req.organization_id),
+                "plan_code": req.plan.code,
+                "approved_by": str(admin_id),
+            },
+            processed_at=now,
+        )
+
+        org_plan = {
+            "starter": "starter",
+            "pro": "pro",
+            "business": "enterprise",
+        }.get(req.plan.code, "starter")
+        Organization.objects.filter(pk=req.organization_id).update(plan=org_plan)
+
+        req.status = PaymentRequest.Status.APPROVED
+        req.reviewed_by_id = admin_id
+        req.reviewed_at = now
+        req.subscription = sub
+        req.save(
+            update_fields=[
+                "status",
+                "reviewed_by",
+                "reviewed_at",
+                "subscription",
+                "updated_at",
+            ]
+        )
+        return self._payment_request_dict(req, include_org=True)
+
+    def reject_manual_payment(self, admin_id: UUID, request_id: UUID, reason: str = "") -> dict:
+        try:
+            req = PaymentRequest.objects.select_related("plan", "organization").get(pk=request_id)
+        except PaymentRequest.DoesNotExist as exc:
+            raise PaymentRequestNotFoundError() from exc
+        if req.status not in {PaymentRequest.Status.PENDING, PaymentRequest.Status.SUBMITTED}:
+            raise PaymentRequestInvalidError("Only pending/submitted payments can be rejected.")
+        req.status = PaymentRequest.Status.REJECTED
+        req.rejection_reason = reason.strip()
+        req.reviewed_by_id = admin_id
+        req.reviewed_at = timezone.now()
+        req.save(
+            update_fields=[
+                "status",
+                "rejection_reason",
+                "reviewed_by",
+                "reviewed_at",
+                "updated_at",
+            ]
+        )
+        PaymentEvent.objects.create(
+            provider=req.provider,
+            event_type="payment.rejected",
+            payload={
+                "payment_request_id": str(req.id),
+                "reference": req.reference,
+                "reason": req.rejection_reason,
+                "rejected_by": str(admin_id),
+            },
+            processed_at=timezone.now(),
+        )
+        return self._payment_request_dict(req, include_org=True)
+
+    def _payment_request_dict(self, req: PaymentRequest, *, include_org: bool = False) -> dict:
+        data = {
+            "id": str(req.id),
+            "organization_id": str(req.organization_id),
+            "plan_code": req.plan.code,
+            "plan_name": req.plan.name,
+            "provider": req.provider,
+            "status": req.status,
+            "amount_cents": req.amount_cents,
+            "currency": req.currency,
+            "reference": req.reference,
+            "payer_phone": req.payer_phone,
+            "payer_name": req.payer_name,
+            "transaction_id": req.transaction_id,
+            "notes": req.notes,
+            "rejection_reason": req.rejection_reason,
+            "subscription_id": str(req.subscription_id) if req.subscription_id else None,
+            "requested_by_id": str(req.requested_by_id) if req.requested_by_id else None,
+            "reviewed_by_id": str(req.reviewed_by_id) if req.reviewed_by_id else None,
+            "reviewed_at": req.reviewed_at,
+            "created_at": req.created_at,
+            "updated_at": req.updated_at,
+        }
+        if include_org:
+            data["organization_name"] = getattr(req.organization, "name", "")
+            data["requested_by_email"] = getattr(req.requested_by, "email", "") or ""
+        return data
 
     def _require_member(self, user_id: UUID, organization_id: UUID) -> None:
         if self._memberships.get(user_id, organization_id) is None:

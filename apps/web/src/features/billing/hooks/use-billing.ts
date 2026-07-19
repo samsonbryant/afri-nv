@@ -5,12 +5,19 @@ import { toast } from "sonner";
 import {
   applyCoupon,
   createCheckout,
+  createManualPayment,
   fetchInvoices,
+  fetchManualPaymentInstructions,
+  fetchManualPayments,
   fetchPlans,
   fetchSubscription,
   fetchUsage,
 } from "@/features/billing/api/billing-api";
-import type { CheckoutInput, CouponInput } from "@/features/billing/types";
+import type {
+  CheckoutInput,
+  CouponInput,
+  CreateManualPaymentInput,
+} from "@/features/billing/types";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
 import { useOrganizationsStore } from "@/features/organizations/stores/organizations-store";
 import { getErrorMessage } from "@/lib/api/errors";
@@ -21,6 +28,8 @@ export const billingKeys = {
   subscription: (orgId: string | null) => [...billingKeys.all, "subscription", orgId] as const,
   invoices: (orgId: string | null) => [...billingKeys.all, "invoices", orgId] as const,
   usage: (orgId: string | null) => [...billingKeys.all, "usage", orgId] as const,
+  manualInstructions: () => [...billingKeys.all, "manual-instructions"] as const,
+  manualPayments: (orgId: string | null) => [...billingKeys.all, "manual-payments", orgId] as const,
 };
 
 function useOrgId() {
@@ -90,6 +99,36 @@ export function useApplyCoupon() {
       void queryClient.invalidateQueries({
         queryKey: billingKeys.subscription(orgId),
       });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+}
+
+export function useManualPaymentInstructions() {
+  return useQuery({
+    queryKey: billingKeys.manualInstructions(),
+    queryFn: fetchManualPaymentInstructions,
+  });
+}
+
+export function useManualPayments() {
+  const orgId = useOrgId();
+  return useQuery({
+    queryKey: billingKeys.manualPayments(orgId),
+    queryFn: () => fetchManualPayments(orgId),
+    enabled: Boolean(orgId),
+  });
+}
+
+export function useCreateManualPayment() {
+  const orgId = useOrgId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateManualPaymentInput) => createManualPayment(input, orgId),
+    onSuccess: () => {
+      toast.success("Payment submitted for admin approval");
+      void queryClient.invalidateQueries({ queryKey: billingKeys.manualPayments(orgId) });
+      void queryClient.invalidateQueries({ queryKey: billingKeys.subscription(orgId) });
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });

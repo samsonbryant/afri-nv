@@ -47,3 +47,46 @@ export type CheckoutInput = {
 export type CouponInput = {
   code: string;
 };
+
+export type MobileMoneyProvider = "mtn_momo" | "orange_money";
+
+export type ManualPaymentInstructions = {
+  currency: string;
+  usdToLocalRate: number;
+  providers: Array<{
+    id: MobileMoneyProvider;
+    name: string;
+    number: string;
+    accountName: string;
+  }>;
+  steps: string[];
+};
+
+export type ManualPaymentRequest = {
+  id: string;
+  organizationId: string;
+  organizationName?: string;
+  planCode: string;
+  planName: string;
+  provider: MobileMoneyProvider;
+  status: "pending" | "submitted" | "approved" | "rejected" | "cancelled";
+  amountCents: number;
+  currency: string;
+  reference: string;
+  payerPhone: string;
+  payerName?: string;
+  transactionId: string;
+  notes?: string;
+  rejectionReason?: string;
+  requestedByEmail?: string;
+  createdAt: string;
+};
+
+export type CreateManualPaymentInput = {
+  planId: string;
+  provider: MobileMoneyProvider;
+  payerPhone: string;
+  payerName?: string;
+  transactionId: string;
+  notes?: string;
+};

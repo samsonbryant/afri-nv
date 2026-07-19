@@ -11,6 +11,8 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.billing.infrastructure.dependencies import get_billing_service
+from apps.billing.interfaces.serializers.serializers import ManualPaymentRejectSerializer
 from apps.platform_admin.infrastructure.dependencies import get_platform_admin_service
 from apps.platform_admin.interfaces.serializers.serializers import (
     AdminUserCreateSerializer,
@@ -72,6 +74,39 @@ class AdminPaymentsView(APIView):
     @extend_schema(tags=["admin"])
     def get(self, request: Request) -> Response:
         return Response(get_platform_admin_service().list_payments())
+
+
+class AdminManualPaymentsView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(tags=["admin"])
+    def get(self, request: Request) -> Response:
+        status_filter = request.query_params.get("status")
+        return Response(get_billing_service().list_all_manual_payments(status=status_filter))
+
+
+class AdminManualPaymentApproveView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(tags=["admin"])
+    def post(self, request: Request, request_id: UUID) -> Response:
+        return Response(get_billing_service().approve_manual_payment(request.user.id, request_id))
+
+
+class AdminManualPaymentRejectView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(request=ManualPaymentRejectSerializer, tags=["admin"])
+    def post(self, request: Request, request_id: UUID) -> Response:
+        serializer = ManualPaymentRejectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(
+            get_billing_service().reject_manual_payment(
+                request.user.id,
+                request_id,
+                serializer.validated_data.get("reason", ""),
+            )
+        )
 
 
 class AdminAnalyticsOverviewView(APIView):

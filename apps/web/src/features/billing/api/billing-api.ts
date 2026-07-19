@@ -6,7 +6,10 @@ import type {
   BillingPlan,
   CheckoutInput,
   CouponInput,
+  CreateManualPaymentInput,
   Invoice,
+  ManualPaymentInstructions,
+  ManualPaymentRequest,
   Subscription,
   UsageMeter,
 } from "@/features/billing/types";
@@ -269,4 +272,118 @@ export async function applyCoupon(
       pickString(payload, "message", "detail") ||
       (payload.applied ? "Coupon applied" : "Coupon not applied"),
   };
+}
+
+function mapManualPayment(raw: Record<string, unknown>): ManualPaymentRequest {
+  return {
+    id: String(raw.id),
+    organizationId: pickString(raw, "organizationId", "organization_id"),
+    organizationName: pickString(raw, "organizationName", "organization_name") || undefined,
+    planCode: pickString(raw, "planCode", "plan_code"),
+    planName: pickString(raw, "planName", "plan_name") || pickString(raw, "plan_code"),
+    provider: (pickString(raw, "provider") || "mtn_momo") as ManualPaymentRequest["provider"],
+    status: (pickString(raw, "status") || "pending") as ManualPaymentRequest["status"],
+    amountCents: pickNumber(raw, "amountCents", "amount_cents"),
+    currency: pickString(raw, "currency") || "xaf",
+    reference: pickString(raw, "reference"),
+    payerPhone: pickString(raw, "payerPhone", "payer_phone"),
+    payerName: pickString(raw, "payerName", "payer_name") || undefined,
+    transactionId: pickString(raw, "transactionId", "transaction_id"),
+    notes: pickString(raw, "notes") || undefined,
+    rejectionReason: pickString(raw, "rejectionReason", "rejection_reason") || undefined,
+    requestedByEmail: pickString(raw, "requestedByEmail", "requested_by_email") || undefined,
+    createdAt: pickIso(raw, "createdAt", "created_at"),
+  };
+}
+
+export async function fetchManualPaymentInstructions(): Promise<ManualPaymentInstructions> {
+  if (isDemoMode()) {
+    return {
+      currency: "xaf",
+      usdToLocalRate: 600,
+      providers: [
+        {
+          id: "mtn_momo",
+          name: "MTN Mobile Money",
+          number: "670000000",
+          accountName: "Novixa",
+        },
+        {
+          id: "orange_money",
+          name: "Orange Money",
+          number: "690000000",
+          accountName: "Novixa",
+        },
+      ],
+      steps: [
+        "Choose a plan and payment method.",
+        "Send the exact amount using the payment reference.",
+        "Submit your transaction ID for admin approval.",
+      ],
+    };
+  }
+  const raw = await api.get<Record<string, unknown>>(
+    API_ENDPOINTS.billing.manualPaymentInstructions,
+  );
+  const providersRaw = Array.isArray(raw.providers) ? raw.providers : [];
+  return {
+    currency: pickString(raw, "currency") || "xaf",
+    usdToLocalRate: pickNumber(raw, "usdToLocalRate", "usd_to_local_rate") || 600,
+    providers: providersRaw.map((item) => {
+      const row = item as Record<string, unknown>;
+      return {
+        id: (pickString(row, "id") || "mtn_momo") as ManualPaymentRequest["provider"],
+        name: pickString(row, "name") || "Mobile Money",
+        number: pickString(row, "number"),
+        accountName: pickString(row, "accountName", "account_name") || "Novixa",
+      };
+    }),
+    steps: Array.isArray(raw.steps) ? raw.steps.map(String) : [],
+  };
+}
+
+export async function fetchManualPayments(
+  organizationId?: string | null,
+): Promise<ManualPaymentRequest[]> {
+  if (!organizationId) return [];
+  if (isDemoMode()) return [];
+  const payload = await api.get<Record<string, unknown>[] | { results: Record<string, unknown>[] }>(
+    withOrg(API_ENDPOINTS.billing.manualPayments, organizationId),
+  );
+  return unwrapList(payload).map(mapManualPayment);
+}
+
+export async function createManualPayment(
+  input: CreateManualPaymentInput,
+  organizationId?: string | null,
+): Promise<ManualPaymentRequest> {
+  if (!organizationId) {
+    throw new Error("organization_id is required for mobile money payment");
+  }
+  if (isDemoMode()) {
+    return {
+      id: `demo-${Date.now()}`,
+      organizationId,
+      planCode: input.planId,
+      planName: input.planId,
+      provider: input.provider,
+      status: "submitted",
+      amountCents: 0,
+      currency: "xaf",
+      reference: `NVX-DEMO`,
+      payerPhone: input.payerPhone,
+      transactionId: input.transactionId,
+      createdAt: new Date().toISOString(),
+    };
+  }
+  const raw = await api.post<Record<string, unknown>>(API_ENDPOINTS.billing.manualPayments, {
+    organization_id: organizationId,
+    plan_code: input.planId,
+    provider: input.provider,
+    payer_phone: input.payerPhone,
+    payer_name: input.payerName ?? "",
+    transaction_id: input.transactionId,
+    notes: input.notes ?? "",
+  });
+  return mapManualPayment(raw);
 }

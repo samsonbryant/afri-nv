@@ -6,6 +6,7 @@ from apps.billing.infrastructure.models import (
     Coupon,
     Invoice,
     PaymentEvent,
+    PaymentRequest,
     Plan,
     Subscription,
     UsageRecord,
@@ -43,6 +44,23 @@ class CouponAdmin(admin.ModelAdmin):
 class PaymentEventAdmin(admin.ModelAdmin):
     list_display = ("provider", "event_type", "processed_at", "created_at")
     list_filter = ("provider", "event_type")
+
+
+@admin.register(PaymentRequest)
+class PaymentRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "reference",
+        "organization",
+        "plan",
+        "provider",
+        "status",
+        "amount_cents",
+        "transaction_id",
+        "created_at",
+    )
+    list_filter = ("provider", "status")
+    search_fields = ("reference", "transaction_id", "payer_phone", "organization__name")
+    autocomplete_fields = ("organization", "plan", "requested_by", "reviewed_by", "subscription")
 
 
 @admin.register(UsageRecord)

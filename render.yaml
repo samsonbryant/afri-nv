@@ -53,6 +53,18 @@ services:
         value: https://novixa-omega.vercel.app
       - key: SOCIAL_AUTH_STUB
         value: "False"
+      - key: MTN_MOMO_NUMBER
+        sync: false
+      - key: MTN_MOMO_ACCOUNT_NAME
+        value: Novixa
+      - key: ORANGE_MONEY_NUMBER
+        sync: false
+      - key: ORANGE_MONEY_ACCOUNT_NAME
+        value: Novixa
+      - key: MANUAL_PAYMENT_CURRENCY
+        value: xaf
+      - key: MANUAL_PAYMENT_USD_TO_LOCAL_RATE
+        value: "600"
       - fromGroup: novixa-secrets
 
   # Frontend is deployed on Vercel (apps/web), not Render.

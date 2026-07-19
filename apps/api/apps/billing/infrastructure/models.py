@@ -143,3 +143,66 @@ class UsageRecord(BaseModel):
 
     def __str__(self) -> str:
         return f"{self.metric}:{self.quantity}"
+
+
+class PaymentRequest(BaseModel):
+    """Manual MTN MoMo / Orange Money payment awaiting staff approval."""
+
+    class Provider(models.TextChoices):
+        MTN_MOMO = "mtn_momo", "MTN Mobile Money"
+        ORANGE_MONEY = "orange_money", "Orange Money"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        SUBMITTED = "submitted", "Submitted"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        CANCELLED = "cancelled", "Cancelled"
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="payment_requests",
+    )
+    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name="payment_requests")
+    provider = models.CharField(max_length=32, choices=Provider.choices, db_index=True)
+    status = models.CharField(
+        max_length=32, choices=Status.choices, default=Status.PENDING, db_index=True
+    )
+    amount_cents = models.PositiveIntegerField()
+    currency = models.CharField(max_length=8, default="xaf")
+    reference = models.CharField(max_length=64, unique=True, db_index=True)
+    payer_phone = models.CharField(max_length=32, blank=True, default="")
+    payer_name = models.CharField(max_length=128, blank=True, default="")
+    transaction_id = models.CharField(max_length=128, blank=True, default="")
+    notes = models.TextField(blank=True, default="")
+    rejection_reason = models.TextField(blank=True, default="")
+    requested_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payment_requests",
+    )
+    reviewed_by = models.ForeignKey(
+        "accounts.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_payment_requests",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    subscription = models.ForeignKey(
+        Subscription,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="payment_requests",
+    )
+
+    class Meta:
+        db_table = "billing_payment_request"
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return f"{self.reference}:{self.status}"

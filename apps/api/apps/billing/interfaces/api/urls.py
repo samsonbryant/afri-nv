@@ -7,6 +7,9 @@ from apps.billing.interfaces.api.views import (
     CouponValidateView,
     DodoWebhookView,
     InvoiceListView,
+    ManualPaymentInstructionsView,
+    ManualPaymentListCreateView,
+    ManualPaymentSubmitView,
     PlanListView,
     PortalView,
     RefundView,
@@ -26,4 +29,15 @@ urlpatterns = [
     path("refunds/", RefundView.as_view(), name="refunds"),
     path("usage/", UsageView.as_view(), name="usage"),
     path("webhooks/dodo/", DodoWebhookView.as_view(), name="dodo-webhook"),
+    path(
+        "manual-payments/instructions/",
+        ManualPaymentInstructionsView.as_view(),
+        name="manual-instructions",
+    ),
+    path("manual-payments/", ManualPaymentListCreateView.as_view(), name="manual-payments"),
+    path(
+        "manual-payments/<uuid:request_id>/submit/",
+        ManualPaymentSubmitView.as_view(),
+        name="manual-payment-submit",
+    ),
 ]

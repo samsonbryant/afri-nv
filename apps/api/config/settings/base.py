@@ -366,3 +366,12 @@ structlog.configure(
 SENTRY_DSN = env("SENTRY_DSN", default="")
 SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="development")
 REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+
+# Manual mobile-money payment instructions (interim until card processor is live)
+MTN_MOMO_NUMBER = env("MTN_MOMO_NUMBER", default="")
+MTN_MOMO_ACCOUNT_NAME = env("MTN_MOMO_ACCOUNT_NAME", default="Novixa")
+ORANGE_MONEY_NUMBER = env("ORANGE_MONEY_NUMBER", default="")
+ORANGE_MONEY_ACCOUNT_NAME = env("ORANGE_MONEY_ACCOUNT_NAME", default="Novixa")
+MANUAL_PAYMENT_CURRENCY = env("MANUAL_PAYMENT_CURRENCY", default="xaf")
+# Optional FX: USD plan amount * rate ≈ local currency (e.g. 600 for XAF)
+MANUAL_PAYMENT_USD_TO_LOCAL_RATE = env.int("MANUAL_PAYMENT_USD_TO_LOCAL_RATE", default=600)

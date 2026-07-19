@@ -29,13 +29,16 @@ import {
 import {
   useAdminAiUsage,
   useAdminAuditLogs,
+  useAdminManualPayments,
   useAdminOrganizations,
   useAdminOverview,
   useAdminPayments,
   useAdminSettings,
   useAdminSubscriptions,
   useAdminUsers,
+  useApproveManualPayment,
   useCreateAdminUser,
+  useRejectManualPayment,
   useUpdateAdminSettings,
   useUpdateAdminUser,
 } from "@/features/admin/hooks/use-admin";
@@ -66,6 +69,9 @@ export function AdminWorkspace() {
   const orgs = useAdminOrganizations();
   const subs = useAdminSubscriptions();
   const payments = useAdminPayments();
+  const manualPayments = useAdminManualPayments();
+  const approvePayment = useApproveManualPayment();
+  const rejectPayment = useRejectManualPayment();
   const aiUsage = useAdminAiUsage();
   const audit = useAdminAuditLogs();
   const settings = useAdminSettings();
@@ -310,30 +316,117 @@ export function AdminWorkspace() {
         </TabsContent>
 
         <TabsContent value="payments">
-          <AdminTable loading={payments.isLoading}>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Organization</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Date</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(payments.data ?? [])
-                .filter((p) => matchesSearch(`${p.organizationName} ${p.status}`, search))
-                .map((p) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.organizationName}</TableCell>
-                    <TableCell>
-                      {p.currency} {Number(p.amount || 0).toFixed(2)}
-                    </TableCell>
-                    <TableCell>{p.status}</TableCell>
-                    <TableCell>{formatDate(p.createdAt, "PP")}</TableCell>
+          <div className="mt-4 space-y-6">
+            <div>
+              <h3 className="mb-3 font-semibold">Mobile money awaiting review</h3>
+              <AdminTable loading={manualPayments.isLoading}>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Organization</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Provider</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Txn ID</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-            </TableBody>
-          </AdminTable>
+                </TableHeader>
+                <TableBody>
+                  {(manualPayments.data ?? [])
+                    .filter((p) =>
+                      matchesSearch(
+                        `${p.reference} ${p.organizationName} ${p.transactionId} ${p.payerPhone}`,
+                        search,
+                      ),
+                    )
+                    .map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.reference}</TableCell>
+                        <TableCell>{p.organizationName}</TableCell>
+                        <TableCell>{p.planName}</TableCell>
+                        <TableCell>
+                          {p.provider === "mtn_momo" ? "MTN MoMo" : "Orange Money"}
+                        </TableCell>
+                        <TableCell>
+                          {p.currency.toUpperCase()} {(p.amountCents / 100).toLocaleString()}
+                        </TableCell>
+                        <TableCell>{p.transactionId || "—"}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              p.status === "approved"
+                                ? "success"
+                                : p.status === "rejected"
+                                  ? "destructive"
+                                  : "secondary"
+                            }
+                          >
+                            {p.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="space-x-2 text-right">
+                          {(p.status === "pending" || p.status === "submitted") && (
+                            <>
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => approvePayment.mutate(p.id)}
+                                disabled={approvePayment.isPending}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  rejectPayment.mutate({
+                                    id: p.id,
+                                    reason: "Could not verify transfer",
+                                  })
+                                }
+                                disabled={rejectPayment.isPending}
+                              >
+                                Reject
+                              </Button>
+                            </>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </AdminTable>
+            </div>
+
+            <div>
+              <h3 className="mb-3 font-semibold">Payment events</h3>
+              <AdminTable loading={payments.isLoading}>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Organization</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(payments.data ?? [])
+                    .filter((p) => matchesSearch(`${p.organizationName} ${p.status}`, search))
+                    .map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.organizationName}</TableCell>
+                        <TableCell>
+                          {p.currency} {Number(p.amount || 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell>{p.status}</TableCell>
+                        <TableCell>{formatDate(p.createdAt, "PP")}</TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </AdminTable>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="ai-usage">

@@ -21,3 +21,13 @@ class CouponInvalidError(ValidationError):
 class InvoiceNotFoundError(NotFoundError):
     default_message = "Invoice not found."
     code = "invoice_not_found"
+
+
+class PaymentRequestNotFoundError(NotFoundError):
+    default_message = "Payment request not found."
+    code = "payment_request_not_found"
+
+
+class PaymentRequestInvalidError(ValidationError):
+    default_message = "Payment request cannot be updated."
+    code = "payment_request_invalid"

@@ -3,15 +3,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  approveAdminManualPayment,
   createAdminUser,
   fetchAdminAiUsage,
   fetchAdminAuditLogs,
+  fetchAdminManualPayments,
   fetchAdminOrganizations,
   fetchAdminOverview,
   fetchAdminPayments,
   fetchAdminSettings,
   fetchAdminSubscriptions,
   fetchAdminUsers,
+  rejectAdminManualPayment,
   updateAdminSettings,
   updateAdminUser,
 } from "@/features/admin/api/admin-api";
@@ -28,6 +31,7 @@ export const adminKeys = {
   aiUsage: () => [...adminKeys.all, "ai-usage"] as const,
   auditLogs: () => [...adminKeys.all, "audit-logs"] as const,
   settings: () => [...adminKeys.all, "settings"] as const,
+  manualPayments: () => [...adminKeys.all, "manual-payments"] as const,
 };
 
 function useAdminQuery<T>(key: readonly unknown[], queryFn: () => Promise<T>) {
@@ -78,6 +82,37 @@ export function useAdminAuditLogs() {
 
 export function useAdminSettings() {
   return useAdminQuery(adminKeys.settings(), fetchAdminSettings);
+}
+
+export function useAdminManualPayments() {
+  return useAdminQuery(adminKeys.manualPayments(), () => fetchAdminManualPayments());
+}
+
+export function useApproveManualPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => approveAdminManualPayment(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: adminKeys.manualPayments() });
+      void qc.invalidateQueries({ queryKey: adminKeys.subscriptions() });
+      void qc.invalidateQueries({ queryKey: adminKeys.overview() });
+      toast.success("Payment approved — subscription activated");
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+}
+
+export function useRejectManualPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      rejectAdminManualPayment(id, reason),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: adminKeys.manualPayments() });
+      toast.success("Payment rejected");
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
 }
 
 export function useCreateAdminUser() {
