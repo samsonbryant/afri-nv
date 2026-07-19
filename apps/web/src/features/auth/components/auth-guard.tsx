@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchCurrentUser } from "@/features/auth/api/auth-api";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
 import { ROUTES } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -38,6 +39,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const hydrated = useAuthHydrated();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const accessToken = useAuthStore((state) => state.accessToken);
+  const setUser = useAuthStore((state) => state.setUser);
 
   const hasValidSession =
     isAuthenticated && Boolean(accessToken) && !accessToken?.startsWith("demo-");
@@ -48,6 +50,21 @@ export function AuthGuard({ children }: AuthGuardProps) {
       router.replace(ROUTES.login);
     }
   }, [hydrated, hasValidSession, router]);
+
+  useEffect(() => {
+    if (!hydrated || !hasValidSession) return;
+    let cancelled = false;
+    void fetchCurrentUser()
+      .then((user) => {
+        if (!cancelled) setUser(user);
+      })
+      .catch(() => {
+        // Keep persisted session; API failures are handled by the client refresh path.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, hasValidSession, setUser]);
 
   if (!hydrated) {
     return (
