@@ -4,58 +4,61 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 210 40% 8%;
+    /* Brand from novixa_logo.png: violet #9000F0 on ink #000818 */
+    --background: 220 40% 98%;
+    --foreground: 220 60% 6%;
     --card: 0 0% 100%;
-    --card-foreground: 210 40% 8%;
+    --card-foreground: 220 60% 6%;
     --popover: 0 0% 100%;
-    --popover-foreground: 210 40% 8%;
-    --primary: 174 72% 28%;
-    --primary-foreground: 170 40% 98%;
-    --secondary: 210 25% 94%;
-    --secondary-foreground: 210 30% 18%;
-    --muted: 210 20% 94%;
-    --muted-foreground: 210 12% 42%;
-    --accent: 199 45% 92%;
-    --accent-foreground: 199 50% 18%;
+    --popover-foreground: 220 60% 6%;
+    --primary: 276 100% 47%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 250 30% 95%;
+    --secondary-foreground: 260 40% 18%;
+    --muted: 240 20% 95%;
+    --muted-foreground: 230 12% 42%;
+    --accent: 276 80% 95%;
+    --accent-foreground: 276 80% 28%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 210 20% 88%;
-    --input: 210 20% 88%;
-    --ring: 174 72% 28%;
-    --radius: 0.625rem;
-    --sidebar: 210 30% 97%;
-    --sidebar-foreground: 210 30% 14%;
-    --sidebar-border: 210 20% 88%;
-    --sidebar-accent: 174 40% 92%;
-    --sidebar-accent-foreground: 174 60% 18%;
+    --border: 240 18% 88%;
+    --input: 240 18% 88%;
+    --ring: 276 100% 47%;
+    --radius: 0.75rem;
+    --sidebar: 240 30% 98%;
+    --sidebar-foreground: 220 40% 12%;
+    --sidebar-border: 240 18% 88%;
+    --sidebar-accent: 276 70% 95%;
+    --sidebar-accent-foreground: 276 70% 22%;
+    --brand-ink: 220 100% 5%;
   }
 
   .dark {
-    --background: 210 35% 7%;
-    --foreground: 210 20% 96%;
-    --card: 210 32% 10%;
-    --card-foreground: 210 20% 96%;
-    --popover: 210 32% 10%;
-    --popover-foreground: 210 20% 96%;
-    --primary: 174 58% 42%;
-    --primary-foreground: 170 40% 6%;
-    --secondary: 210 25% 16%;
-    --secondary-foreground: 210 15% 90%;
-    --muted: 210 25% 14%;
-    --muted-foreground: 210 12% 62%;
-    --accent: 199 35% 16%;
-    --accent-foreground: 199 40% 88%;
+    --background: 220 55% 5%;
+    --foreground: 240 20% 96%;
+    --card: 220 45% 8%;
+    --card-foreground: 240 20% 96%;
+    --popover: 220 45% 8%;
+    --popover-foreground: 240 20% 96%;
+    --primary: 276 95% 62%;
+    --primary-foreground: 220 60% 6%;
+    --secondary: 250 25% 14%;
+    --secondary-foreground: 250 20% 92%;
+    --muted: 230 25% 12%;
+    --muted-foreground: 240 12% 64%;
+    --accent: 276 40% 16%;
+    --accent-foreground: 276 80% 88%;
     --destructive: 0 62% 45%;
     --destructive-foreground: 0 0% 100%;
-    --border: 210 20% 18%;
-    --input: 210 20% 18%;
-    --ring: 174 58% 42%;
-    --sidebar: 210 35% 8%;
-    --sidebar-foreground: 210 15% 92%;
-    --sidebar-border: 210 20% 16%;
-    --sidebar-accent: 174 30% 16%;
-    --sidebar-accent-foreground: 174 45% 85%;
+    --border: 230 20% 16%;
+    --input: 230 20% 16%;
+    --ring: 276 95% 62%;
+    --sidebar: 220 55% 6%;
+    --sidebar-foreground: 240 15% 92%;
+    --sidebar-border: 230 20% 14%;
+    --sidebar-accent: 276 35% 14%;
+    --sidebar-accent-foreground: 276 70% 88%;
+    --brand-ink: 220 100% 5%;
   }
 
   * {

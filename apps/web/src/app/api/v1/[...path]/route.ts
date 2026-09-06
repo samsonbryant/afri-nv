@@ -117,9 +117,14 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]): Promise<N
     cache: "no-store",
   };
 
+  // Buffer the request body. Streaming `req.body` with duplex can arrive empty
+  // on some Next.js runtimes, which makes DRF report missing email/password.
+  let requestBody: ArrayBuffer | undefined;
   if (method !== "GET" && method !== "HEAD") {
-    init.body = req.body;
-    (init as RequestInit & { duplex?: string }).duplex = "half";
+    requestBody = await req.arrayBuffer();
+    if (requestBody.byteLength > 0) {
+      init.body = requestBody;
+    }
   }
 
   let upstream: Response;
@@ -147,11 +152,10 @@ async function proxyRequest(req: NextRequest, pathSegments: string[]): Promise<N
           upstream = await fetch(nextUrl.toString(), {
             method,
             headers,
-            body: init.body,
+            ...(requestBody && requestBody.byteLength > 0 ? { body: requestBody } : {}),
             redirect: "manual",
             cache: "no-store",
-            ...(init.body ? { duplex: "half" } : {}),
-          } as RequestInit);
+          });
         }
       } catch {
         /* fall through */

@@ -54,10 +54,13 @@ SOCIAL_AUTH_STUB=False
 
 ```bash
 python manage.py migrate --noinput
-python manage.py createsuperuser
+python manage.py bootstrap_admin
+# or: python manage.py createsuperuser
 ```
 
-`createsuperuser` sets `is_staff=True`. Admin UI (`/admin` and `/api/v1/admin/*`) requires Django staff — a normal registered user gets **403**. To promote an existing account:
+`bootstrap_admin` creates staff superuser `admin@novixa.ai` / `NovixaAdmin2026!` (override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`). Change the password after first login.
+
+`createsuperuser` also sets `is_staff=True`. Admin UI (`/admin` and `/api/v1/admin/*`) requires Django staff — a normal registered user gets **403**. To promote an existing account:
 
 ```bash
 python manage.py shell -c "from apps.accounts.infrastructure.models import User; u=User.objects.get(email='you@example.com'); u.is_staff=True; u.is_superuser=True; u.save()"

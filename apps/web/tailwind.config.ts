@@ -90,8 +90,10 @@ const config: Config = {
       backgroundImage: {
         "grid-pattern":
           "linear-gradient(to right, hsl(var(--border) / 0.4) 1px, transparent 1px), linear-gradient(to bottom, hsl(var(--border) / 0.4) 1px, transparent 1px)",
-        "teal-glow":
-          "radial-gradient(ellipse 80% 50% at 50% -20%, hsl(174 58% 32% / 0.25), transparent), radial-gradient(ellipse 60% 40% at 90% 10%, hsl(199 60% 28% / 0.15), transparent)",
+        "brand-glow":
+          "radial-gradient(ellipse 80% 50% at 50% -20%, hsl(276 100% 47% / 0.28), transparent), radial-gradient(ellipse 55% 40% at 92% 8%, hsl(276 90% 55% / 0.16), transparent)",
+        "ink-mesh":
+          "radial-gradient(ellipse 70% 60% at 20% 20%, hsl(276 100% 47% / 0.35), transparent 55%), radial-gradient(ellipse 50% 40% at 85% 30%, hsl(250 80% 40% / 0.25), transparent 50%), linear-gradient(160deg, hsl(220 100% 5%) 0%, hsl(250 40% 10%) 55%, hsl(220 80% 8%) 100%)",
       },
     },
   },

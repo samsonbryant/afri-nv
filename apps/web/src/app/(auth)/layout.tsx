@@ -6,7 +6,7 @@ import { siteConfig } from "@/config/site";
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="bg-background relative min-h-screen">
-      <div className="bg-teal-glow pointer-events-none absolute inset-0 opacity-80" aria-hidden />
+      <div className="bg-brand-glow pointer-events-none absolute inset-0 opacity-80" aria-hidden />
       <div
         className="bg-grid-pattern pointer-events-none absolute inset-0 bg-[size:40px_40px] opacity-30 dark:opacity-15"
         aria-hidden

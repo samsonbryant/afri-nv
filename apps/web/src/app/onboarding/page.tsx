@@ -135,7 +135,10 @@ export default function OnboardingPage() {
   return (
     <AuthGuard>
       <div className="bg-background flex min-h-screen items-center justify-center px-4 py-10">
-        <div className="bg-teal-glow pointer-events-none absolute inset-0 opacity-70" aria-hidden />
+        <div
+          className="bg-brand-glow pointer-events-none absolute inset-0 opacity-70"
+          aria-hidden
+        />
         <div className="relative z-10 w-full">
           <OnboardingForm />
         </div>

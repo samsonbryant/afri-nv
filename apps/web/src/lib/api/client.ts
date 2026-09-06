@@ -69,6 +69,22 @@ function clearAuthSession(): void {
   useAuthStore.getState().logout();
 }
 
+function flattenFieldErrors(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    const parts = value.filter((item): item is string => typeof item === "string");
+    return parts.length ? parts.join(" ") : null;
+  }
+  if (typeof value === "object" && value !== null) {
+    const parts = Object.entries(value as Record<string, unknown>).flatMap(([key, raw]) => {
+      const msg = flattenFieldErrors(raw);
+      return msg ? [`${key}: ${msg}`] : [];
+    });
+    return parts.length ? parts.join(" ") : null;
+  }
+  return null;
+}
+
 function extractErrorMessage(payload: unknown, status: number): string {
   if (typeof payload === "object" && payload !== null) {
     const obj = payload as Record<string, unknown>;
@@ -79,11 +95,11 @@ function extractErrorMessage(payload: unknown, status: number): string {
       const err = nested as Record<string, unknown>;
       if (typeof err.message === "string") return err.message;
       if (typeof err.detail === "string") return err.detail;
-      if (err.message && typeof err.message === "object") {
-        const msgObj = err.message as Record<string, unknown>;
-        if (typeof msgObj.detail === "string") return msgObj.detail;
-      }
+      const fromMessage = flattenFieldErrors(err.message);
+      if (fromMessage) return fromMessage;
     }
+    const fromRoot = flattenFieldErrors(obj);
+    if (fromRoot) return fromRoot;
   }
   return `Request failed with status ${status}`;
 }

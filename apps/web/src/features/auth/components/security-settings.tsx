@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -109,12 +110,12 @@ export function SecuritySettings() {
           <p className="text-muted-foreground text-sm">
             Enter your password and a current 2FA code to disable.
           </p>
-          <Input
-            type="password"
+          <PasswordInput
             value={disablePassword}
             onChange={(event) => setDisablePassword(event.target.value)}
             placeholder="Password"
             aria-label="Password to disable 2FA"
+            autoComplete="current-password"
           />
           <Input
             value={disableCode}

@@ -5,8 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { useResetPassword } from "@/features/auth/hooks/use-auth";
 import { resetPasswordSchema, type ResetPasswordInput } from "@/lib/validations/auth";
 import { ROUTES } from "@/lib/constants";
@@ -58,9 +58,8 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="password">New password</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="new-password"
           placeholder="••••••••"
           aria-invalid={!!errors.password}
@@ -76,9 +75,8 @@ export function ResetPasswordForm({ token }: ResetPasswordFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="confirmPassword">Confirm password</Label>
-        <Input
+        <PasswordInput
           id="confirmPassword"
-          type="password"
           autoComplete="new-password"
           placeholder="••••••••"
           aria-invalid={!!errors.confirmPassword}

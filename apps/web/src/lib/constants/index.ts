@@ -1,7 +1,8 @@
 export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Novixa";
 
 export const APP_DESCRIPTION =
-  process.env.NEXT_PUBLIC_APP_DESCRIPTION ?? "AI Business Operating System";
+  process.env.NEXT_PUBLIC_APP_DESCRIPTION ??
+  "AI business operating system for teams that ship—assistants, workflows, knowledge, CRM, and subscriptions.";
 
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
@@ -78,6 +79,7 @@ export const ORG_STORAGE_KEY = "novixa-active-org";
 
 export const ROUTES = {
   home: "/",
+  about: "/about",
   login: "/login",
   register: "/register",
   forgotPassword: "/forgot-password",
