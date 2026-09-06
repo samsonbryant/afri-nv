@@ -143,3 +143,67 @@ class CampaignDetailView(APIView):
     def delete(self, request: Request, campaign_id: UUID) -> Response:
         get_marketing_service().delete_campaign(request.user.id, campaign_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SocialConnectionListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["marketing"])
+    def get(self, request: Request) -> Response:
+        return Response(
+            get_marketing_service().list_social_connections(request.user.id, _org(request))
+        )
+
+    @extend_schema(tags=["marketing"])
+    def post(self, request: Request) -> Response:
+        data = dict(request.data)
+        org_id = UUID(str(data.pop("organization_id")))
+        item = get_marketing_service().connect_social(request.user.id, org_id, data)
+        return Response(item, status=status.HTTP_201_CREATED)
+
+
+class SocialConnectionDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["marketing"])
+    def delete(self, request: Request, connection_id: UUID) -> Response:
+        get_marketing_service().disconnect_social(request.user.id, connection_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class FacebookAdListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["marketing"])
+    def get(self, request: Request) -> Response:
+        return Response(get_marketing_service().list_facebook_ads(request.user.id, _org(request)))
+
+    @extend_schema(tags=["marketing"])
+    def post(self, request: Request) -> Response:
+        data = dict(request.data)
+        org_id = UUID(str(data.pop("organization_id")))
+        item = get_marketing_service().create_facebook_ad(request.user.id, org_id, data)
+        return Response(item, status=status.HTTP_201_CREATED)
+
+
+class FacebookAdMetricsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["marketing"])
+    def post(self, request: Request, ad_id: UUID) -> Response:
+        return Response(get_marketing_service().refresh_facebook_ad_metrics(request.user.id, ad_id))
+
+
+class SocialPostListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["marketing"])
+    def get(self, request: Request) -> Response:
+        return Response(get_marketing_service().list_social_posts(request.user.id, _org(request)))
+
+    @extend_schema(tags=["marketing"])
+    def post(self, request: Request) -> Response:
+        data = dict(request.data)
+        org_id = UUID(str(data.pop("organization_id")))
+        item = get_marketing_service().publish_social_post(request.user.id, org_id, data)
+        return Response(item, status=status.HTTP_201_CREATED)

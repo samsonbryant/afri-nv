@@ -62,9 +62,7 @@ services:
       - key: ORANGE_MONEY_ACCOUNT_NAME
         value: Novixa
       - key: MANUAL_PAYMENT_CURRENCY
-        value: xaf
-      - key: MANUAL_PAYMENT_USD_TO_LOCAL_RATE
-        value: "600"
+        value: usd
       - fromGroup: novixa-secrets
 
   # Frontend is deployed on Vercel (apps/web), not Render.

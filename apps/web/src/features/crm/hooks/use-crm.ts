@@ -42,6 +42,7 @@ export function useCompanies() {
   return useQuery({
     queryKey: crmKeys.companies(orgId),
     queryFn: () => fetchCompanies(orgId),
+    refetchInterval: 12000,
   });
 }
 
@@ -65,6 +66,7 @@ export function useContacts() {
   return useQuery({
     queryKey: crmKeys.contacts(orgId),
     queryFn: () => fetchContacts(orgId),
+    refetchInterval: 12000,
   });
 }
 
@@ -88,6 +90,7 @@ export function useLeads() {
   return useQuery({
     queryKey: crmKeys.leads(orgId),
     queryFn: () => fetchLeads(orgId),
+    refetchInterval: 12000,
   });
 }
 
@@ -128,6 +131,7 @@ export function useOpportunities() {
   return useQuery({
     queryKey: crmKeys.opportunities(orgId),
     queryFn: () => fetchOpportunities(orgId),
+    refetchInterval: 12000,
   });
 }
 
@@ -169,6 +173,7 @@ export function usePipeline() {
   return useQuery({
     queryKey: crmKeys.pipeline(orgId),
     queryFn: () => fetchPipeline(orgId),
+    refetchInterval: 12000,
   });
 }
 
@@ -177,6 +182,7 @@ export function useActivities() {
   return useQuery({
     queryKey: crmKeys.activities(orgId),
     queryFn: () => fetchActivities(orgId),
+    refetchInterval: 12000,
   });
 }
 

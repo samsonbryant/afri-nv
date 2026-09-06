@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   fetchDocuments,
   uploadDocument,
+  askDocument,
   analyzeDocument,
   summarizeDocument,
   translateDocument,
@@ -77,6 +78,11 @@ export function useDocumentAction() {
       extra?: Record<string, unknown>;
     }): Promise<DocumentJob> => {
       switch (action) {
+        case "ask":
+          return askDocument({
+            documentId,
+            prompt: (extra?.prompt as string) || (extra?.question as string) || "",
+          });
         case "analyze":
           return analyzeDocument({
             documentId,

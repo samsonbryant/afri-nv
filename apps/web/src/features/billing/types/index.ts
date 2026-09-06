@@ -18,6 +18,11 @@ export type Subscription = {
   renewsAt?: string;
   seats: number;
   cancelAtPeriodEnd?: boolean;
+  trialEnd?: string | null;
+  paymentMethod?: string;
+  cardLast4?: string;
+  cardBrand?: string;
+  autoCharge?: boolean;
 };
 
 export type Invoice = {
@@ -52,7 +57,6 @@ export type MobileMoneyProvider = "mtn_momo" | "orange_money";
 
 export type ManualPaymentInstructions = {
   currency: string;
-  usdToLocalRate: number;
   providers: Array<{
     id: MobileMoneyProvider;
     name: string;
@@ -89,4 +93,10 @@ export type CreateManualPaymentInput = {
   payerName?: string;
   transactionId: string;
   notes?: string;
+};
+
+export type AttachCardInput = {
+  paymentMethodRef: string;
+  cardLast4?: string;
+  cardBrand?: string;
 };

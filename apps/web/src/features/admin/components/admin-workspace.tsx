@@ -350,7 +350,10 @@ export function AdminWorkspace() {
                           {p.provider === "mtn_momo" ? "MTN MoMo" : "Orange Money"}
                         </TableCell>
                         <TableCell>
-                          {p.currency.toUpperCase()} {(p.amountCents / 100).toLocaleString()}
+                          {new Intl.NumberFormat("en-US", {
+                            style: "currency",
+                            currency: "USD",
+                          }).format(p.amountCents / 100)}
                         </TableCell>
                         <TableCell>{p.transactionId || "—"}</TableCell>
                         <TableCell>

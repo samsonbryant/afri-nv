@@ -26,6 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  useAttachCard,
   useCreateManualPayment,
   useInvoices,
   useManualPaymentInstructions,
@@ -38,9 +39,13 @@ import type { BillingPlan, MobileMoneyProvider } from "@/features/billing/types"
 import { cn } from "@/lib/utils/cn";
 import { formatDate } from "@/lib/utils/format";
 
-function formatLocalAmount(amountCents: number, currency: string) {
+function formatMoney(amountCents: number) {
   const value = amountCents / 100;
-  return `${currency.toUpperCase()} ${value.toLocaleString()}`;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: value % 1 === 0 ? 0 : 2,
+  }).format(value);
 }
 
 export function BillingWorkspace() {
@@ -51,6 +56,7 @@ export function BillingWorkspace() {
   const { data: instructions } = useManualPaymentInstructions();
   const { data: manualPayments = [] } = useManualPayments();
   const createPayment = useCreateManualPayment();
+  const attachCard = useAttachCard();
 
   const [selectedPlan, setSelectedPlan] = useState<BillingPlan | null>(null);
   const [provider, setProvider] = useState<MobileMoneyProvider>("mtn_momo");
@@ -58,17 +64,19 @@ export function BillingWorkspace() {
   const [payerName, setPayerName] = useState("");
   const [transactionId, setTransactionId] = useState("");
   const [notes, setNotes] = useState("");
+  const [cardRef, setCardRef] = useState("");
+  const [cardLast4, setCardLast4] = useState("");
+  const [cardBrand, setCardBrand] = useState("visa");
 
   const selectedProvider = useMemo(
     () => instructions?.providers.find((p) => p.id === provider),
     [instructions, provider],
   );
 
-  const localAmountLabel = useMemo(() => {
-    if (!selectedPlan || !instructions) return "";
-    const local = Math.round(selectedPlan.priceMonthly * instructions.usdToLocalRate);
-    return `${instructions.currency.toUpperCase()} ${local.toLocaleString()}`;
-  }, [selectedPlan, instructions]);
+  const usdAmountLabel = useMemo(() => {
+    if (!selectedPlan) return "";
+    return formatMoney(Math.round(selectedPlan.priceMonthly * 100));
+  }, [selectedPlan]);
 
   const openRequests = manualPayments.filter(
     (p) => p.status === "pending" || p.status === "submitted",
@@ -78,8 +86,79 @@ export function BillingWorkspace() {
     <div>
       <PageHeader
         title="Billing"
-        description="Pay with MTN Mobile Money or Orange Money. An admin activates your package after verifying the transfer."
+        description="15 days unlimited free usage after you add a card. When the trial ends, we auto-debit your plan in USD. Mobile money remains available as an interim option."
       />
+
+      <section className="border-border bg-card mb-8 rounded-xl border p-5">
+        <div className="flex items-start gap-3">
+          <CreditCard className="text-muted-foreground mt-0.5 h-5 w-5" />
+          <div className="flex-1">
+            <h2 className="font-display text-lg font-semibold">
+              Card on file (required for trial)
+            </h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Add a payment method so Novixa can charge your selected plan automatically when the
+              15-day unlimited trial ends.
+            </p>
+            {subscription?.cardLast4 ? (
+              <p className="mt-3 text-sm">
+                Saved: {(subscription.cardBrand || "card").toUpperCase()} ····{" "}
+                {subscription.cardLast4}
+                {subscription.autoCharge ? " · auto-charge on" : ""}
+                {subscription.trialEnd
+                  ? ` · trial ends ${formatDate(subscription.trialEnd, "PP")}`
+                  : ""}
+              </p>
+            ) : (
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="card-ref">Payment method reference</Label>
+                  <Input
+                    id="card-ref"
+                    value={cardRef}
+                    onChange={(e) => setCardRef(e.target.value)}
+                    placeholder="pm_… or processor token"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="card-last4">Last 4</Label>
+                  <Input
+                    id="card-last4"
+                    value={cardLast4}
+                    maxLength={4}
+                    onChange={(e) => setCardLast4(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    placeholder="4242"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="card-brand">Brand</Label>
+                  <Input
+                    id="card-brand"
+                    value={cardBrand}
+                    onChange={(e) => setCardBrand(e.target.value)}
+                    placeholder="visa"
+                  />
+                </div>
+                <div className="sm:col-span-3">
+                  <Button
+                    type="button"
+                    disabled={!cardRef.trim() || attachCard.isPending}
+                    onClick={() =>
+                      attachCard.mutate({
+                        paymentMethodRef: cardRef.trim(),
+                        cardLast4: cardLast4.trim(),
+                        cardBrand: cardBrand.trim(),
+                      })
+                    }
+                  >
+                    Save card for auto-debit
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
 
       <section className="border-border bg-card mb-8 rounded-xl border p-5">
         <div className="flex items-start gap-3">
@@ -87,9 +166,8 @@ export function BillingWorkspace() {
           <div>
             <h2 className="font-display text-lg font-semibold">Mobile money (interim)</h2>
             <p className="text-muted-foreground mt-1 text-sm">
-              Card checkout is waiting on processor approval. Use MTN MoMo or Orange Money now —
-              include the payment reference in the transfer note, then submit your transaction ID
-              for admin approval.
+              Prefer MTN MoMo or Orange Money while card processors finish approval — send the exact
+              USD plan amount and submit your transaction ID for admin activation.
             </p>
             {instructions?.steps?.length ? (
               <ol className="text-muted-foreground mt-3 list-decimal space-y-1 pl-5 text-sm">
@@ -114,14 +192,18 @@ export function BillingWorkspace() {
                 <Badge variant="success">{subscription.status}</Badge>
               </div>
               <p className="text-muted-foreground mt-1 text-sm">
-                Renews {formatDate(subscription.currentPeriodEnd, "PP")} · {subscription.seats}{" "}
-                seats
+                {subscription.status === "trialing" && subscription.trialEnd
+                  ? `Unlimited trial until ${formatDate(subscription.trialEnd, "PP")} · then auto-charge`
+                  : `Renews ${formatDate(subscription.currentPeriodEnd, "PP")}`}
+                {` · ${subscription.seats} seats`}
                 {subscription.cancelAtPeriodEnd ? " · Cancels at period end" : ""}
               </p>
             </div>
           </div>
         ) : (
-          <p className="text-muted-foreground mt-3 text-sm">No active subscription yet.</p>
+          <p className="text-muted-foreground mt-3 text-sm">
+            No active subscription yet. Choose a plan to start the 15-day unlimited trial.
+          </p>
         )}
       </section>
 
@@ -137,10 +219,6 @@ export function BillingWorkspace() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {plans.map((plan) => {
               const current = subscription?.planId === plan.id;
-              const local =
-                instructions != null
-                  ? Math.round(plan.priceMonthly * instructions.usdToLocalRate)
-                  : null;
               return (
                 <div
                   key={plan.id}
@@ -154,15 +232,15 @@ export function BillingWorkspace() {
                     {plan.highlighted ? <Badge>Popular</Badge> : null}
                   </div>
                   <p className="text-2xl font-semibold tracking-tight">
-                    {plan.id === "enterprise" ? "Custom" : `$${plan.priceMonthly}`}
+                    {plan.id === "enterprise"
+                      ? "Custom"
+                      : formatMoney(Math.round(plan.priceMonthly * 100))}
                     {plan.id !== "enterprise" ? (
                       <span className="text-muted-foreground text-sm font-normal">/mo</span>
                     ) : null}
                   </p>
-                  {local != null && plan.id !== "enterprise" ? (
-                    <p className="text-muted-foreground text-sm">
-                      ≈ {instructions?.currency.toUpperCase()} {local.toLocaleString()}
-                    </p>
+                  {plan.id !== "enterprise" ? (
+                    <p className="text-muted-foreground text-sm">USD only</p>
                   ) : null}
                   <p className="text-muted-foreground mt-2 text-sm">{plan.description}</p>
                   <ul className="mt-4 flex-1 space-y-1.5 text-sm">
@@ -222,7 +300,7 @@ export function BillingWorkspace() {
                   <TableCell className="font-medium">{row.reference}</TableCell>
                   <TableCell>{row.planName}</TableCell>
                   <TableCell>{row.provider === "mtn_momo" ? "MTN MoMo" : "Orange Money"}</TableCell>
-                  <TableCell>{formatLocalAmount(row.amountCents, row.currency)}</TableCell>
+                  <TableCell>{formatMoney(row.amountCents)}</TableCell>
                   <TableCell>
                     <Badge
                       variant={
@@ -327,13 +405,13 @@ export function BillingWorkspace() {
           <DialogHeader>
             <DialogTitle>Pay for {selectedPlan?.name}</DialogTitle>
             <DialogDescription>
-              Send payment via mobile money, then submit your transaction details for admin
+              Send the USD amount via mobile money, then submit your transaction details for admin
               approval.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-muted-foreground text-sm">
-              Amount: <strong>{localAmountLabel}</strong> (≈ ${selectedPlan?.priceMonthly}/mo).
+              Amount due: <strong>{usdAmountLabel}</strong> USD.
             </p>
             <div className="flex gap-2">
               <Button

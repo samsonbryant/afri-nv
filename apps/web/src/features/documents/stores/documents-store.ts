@@ -14,6 +14,8 @@ type DocumentsUiState = {
   setTranslateLanguage: (lang: string) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
+  askPrompt: string;
+  setAskPrompt: (prompt: string) => void;
 };
 
 export const useDocumentsStore = create<DocumentsUiState>((set) => ({
@@ -27,4 +29,6 @@ export const useDocumentsStore = create<DocumentsUiState>((set) => ({
   setTranslateLanguage: (translateLanguage) => set({ translateLanguage }),
   searchQuery: "",
   setSearchQuery: (searchQuery) => set({ searchQuery }),
+  askPrompt: "",
+  setAskPrompt: (askPrompt) => set({ askPrompt }),
 }));

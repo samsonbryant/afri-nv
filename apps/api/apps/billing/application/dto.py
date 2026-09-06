@@ -31,6 +31,10 @@ class SubscriptionDTO:
     cancel_at_period_end: bool
     trial_end: datetime | None
     created_at: datetime
+    payment_method: str = ""
+    card_last4: str = ""
+    card_brand: str = ""
+    auto_charge: bool = True
 
 
 @dataclass(slots=True)

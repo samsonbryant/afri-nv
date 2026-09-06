@@ -29,6 +29,13 @@ export function normalizeOrganization(raw: Record<string, unknown>): Organizatio
     slug: String(raw.slug ?? ""),
     role: (raw.role as Organization["role"]) || undefined,
     createdAt: String(raw.created_at ?? raw.createdAt ?? new Date().toISOString()),
+    description: pickString(raw, "description") || undefined,
+    industry: pickString(raw, "industry") || undefined,
+    website: pickString(raw, "website") || undefined,
+    phone: pickString(raw, "phone") || undefined,
+    address: pickString(raw, "address") || undefined,
+    logoUrl: pickString(raw, "logo_url", "logoUrl") || null,
+    plan: pickString(raw, "plan") || undefined,
   };
 }
 
@@ -62,6 +69,17 @@ export async function createOrganizationRequest(payload: {
   slug: string;
 }): Promise<Organization> {
   const raw = await api.post<Record<string, unknown>>(API_ENDPOINTS.organizations.create, payload);
+  return normalizeOrganization(raw);
+}
+
+export async function updateOrganizationRequest(
+  organizationId: string,
+  payload: FormData | Record<string, unknown>,
+): Promise<Organization> {
+  const raw = await api.patch<Record<string, unknown>>(
+    API_ENDPOINTS.organizations.update(organizationId),
+    payload,
+  );
   return normalizeOrganization(raw);
 }
 

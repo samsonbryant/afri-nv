@@ -80,7 +80,7 @@ export function LandingPage() {
               >
                 <Button size="lg" asChild className="min-w-[168px] shadow-lg shadow-[#9000F0]/30">
                   <Link href={ROUTES.register}>
-                    Start free
+                    Start free trial
                     <ArrowRight className="h-4 w-4" aria-hidden />
                   </Link>
                 </Button>
@@ -187,7 +187,8 @@ export function LandingPage() {
               Plans that grow with you
             </h2>
             <p className="text-muted-foreground mt-3 text-balance">
-              Start free, then upgrade with MTN MoMo or Orange Money when you need more AI capacity.
+              Start a 15-day unlimited trial with a card on file — we auto-charge your plan when the
+              trial ends. Mobile money remains available as an interim option.
             </p>
           </div>
 

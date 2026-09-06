@@ -22,6 +22,14 @@ class Organization(BaseModel):
         choices=Plan.choices,
         default=Plan.FREE,
     )
+    # Business profile used by AI agents, workflows, and automations.
+    logo = models.ImageField(upload_to="org_logos/", blank=True, null=True)
+    description = models.TextField(blank=True, default="")
+    industry = models.CharField(max_length=128, blank=True, default="")
+    website = models.URLField(blank=True, default="")
+    phone = models.CharField(max_length=64, blank=True, default="")
+    address = models.TextField(blank=True, default="")
+    business_context = models.JSONField(default=dict, blank=True)
 
     class Meta:
         db_table = "organizations_organization"

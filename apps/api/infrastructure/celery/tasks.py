@@ -61,6 +61,17 @@ def process_report_generation(self, report_id: str) -> dict[str, str]:  # type: 
     return {"id": str(result.id), "status": result.status}
 
 
+@shared_task(name="infrastructure.charge_expired_trials")
+def charge_expired_trials() -> dict:
+    """Auto-debit saved cards when a 15-day trial ends."""
+    from apps.billing.infrastructure.dependencies import get_billing_service
+
+    logger.info("charge_expired_trials_started")
+    result = get_billing_service().charge_expired_trials()
+    logger.info("charge_expired_trials_finished", **result)
+    return result
+
+
 @shared_task(name="infrastructure.run_security_backup", bind=True, max_retries=2)
 def run_security_backup(self, backup_id: str) -> dict[str, str]:  # type: ignore[no-untyped-def]
     from apps.security.infrastructure.dependencies import get_security_service

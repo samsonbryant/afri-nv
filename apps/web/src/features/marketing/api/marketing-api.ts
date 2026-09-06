@@ -3,11 +3,17 @@ import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import { pickIso, pickString, unwrapList, withOrg } from "@/lib/api/org";
 import { isDemoMode } from "@/lib/constants";
 import type {
+  ConnectSocialInput,
+  CreateFacebookAdInput,
+  FacebookAd,
   GenerateMarketingInput,
   MarketingAsset,
   MarketingAssetType,
   MarketingCampaign,
   MarketingTone,
+  PublishSocialPostInput,
+  SocialConnection,
+  SocialPost,
 } from "@/features/marketing/types";
 import { ASSET_TYPE_LABELS } from "@/features/marketing/types";
 
@@ -163,4 +169,216 @@ export async function fetchCampaigns(organizationId?: string | null): Promise<Ma
   } catch {
     return [];
   }
+}
+
+function mapConnection(raw: Record<string, unknown>): SocialConnection {
+  return {
+    id: String(raw.id),
+    platform: pickString(raw, "platform") || "facebook",
+    accountName: pickString(raw, "account_name", "accountName") || "Account",
+    accountId: pickString(raw, "account_id", "accountId") || undefined,
+    status: pickString(raw, "status") || "connected",
+    createdAt: pickIso(raw, "createdAt", "created_at"),
+  };
+}
+
+function mapFacebookAd(raw: Record<string, unknown>): FacebookAd {
+  const metrics =
+    raw.metrics && typeof raw.metrics === "object" ? (raw.metrics as FacebookAd["metrics"]) : {};
+  return {
+    id: String(raw.id),
+    name: pickString(raw, "name") || "Facebook Ad",
+    captionPrompt: pickString(raw, "caption_prompt", "captionPrompt"),
+    caption: pickString(raw, "caption"),
+    status: pickString(raw, "status") || "draft",
+    scheduledAt:
+      (raw.scheduled_at as string | null | undefined) ??
+      (raw.scheduledAt as string | null | undefined) ??
+      null,
+    automationEnabled: Boolean(raw.automation_enabled ?? raw.automationEnabled),
+    targetAudience:
+      (raw.target_audience as Record<string, unknown>) ||
+      (raw.targetAudience as Record<string, unknown>) ||
+      {},
+    budgetCents: Number(raw.budget_cents ?? raw.budgetCents ?? 0),
+    currency: pickString(raw, "currency") || "usd",
+    metrics,
+    createdAt: pickIso(raw, "createdAt", "created_at"),
+    updatedAt: pickIso(raw, "updatedAt", "updated_at"),
+  };
+}
+
+function mapSocialPost(raw: Record<string, unknown>): SocialPost {
+  return {
+    id: String(raw.id),
+    content: pickString(raw, "content"),
+    platforms: Array.isArray(raw.platforms) ? raw.platforms.map(String) : [],
+    includeWhatsapp: Boolean(raw.include_whatsapp ?? raw.includeWhatsapp),
+    status: pickString(raw, "status") || "draft",
+    results: (raw.results as Record<string, unknown>) || {},
+    publishedAt:
+      (raw.published_at as string | null | undefined) ??
+      (raw.publishedAt as string | null | undefined) ??
+      null,
+    createdAt: pickIso(raw, "createdAt", "created_at"),
+  };
+}
+
+export async function fetchSocialConnections(
+  organizationId?: string | null,
+): Promise<SocialConnection[]> {
+  if (isDemoMode()) return [];
+  try {
+    const payload = await api.get<
+      Record<string, unknown>[] | { results: Record<string, unknown>[] }
+    >(withOrg(API_ENDPOINTS.marketing.socialConnections, organizationId));
+    return unwrapList(payload).map(mapConnection);
+  } catch {
+    return [];
+  }
+}
+
+export async function connectSocialAccount(
+  input: ConnectSocialInput,
+  organizationId?: string | null,
+): Promise<SocialConnection> {
+  if (!organizationId) throw new Error("organization_id is required");
+  if (isDemoMode()) {
+    return {
+      id: `sc-${Date.now()}`,
+      platform: input.platform,
+      accountName: input.accountName,
+      accountId: input.accountId,
+      status: "connected",
+      createdAt: new Date().toISOString(),
+    };
+  }
+  const raw = await api.post<Record<string, unknown>>(API_ENDPOINTS.marketing.socialConnections, {
+    organization_id: organizationId,
+    platform: input.platform,
+    account_name: input.accountName,
+    account_id: input.accountId ?? "",
+    access_token: input.accessToken ?? "stub-token",
+  });
+  return mapConnection(raw);
+}
+
+export async function disconnectSocialAccount(
+  connectionId: string,
+  _organizationId?: string | null,
+): Promise<void> {
+  if (isDemoMode()) return;
+  await api.delete(API_ENDPOINTS.marketing.socialConnection(connectionId));
+}
+
+export async function fetchFacebookAds(organizationId?: string | null): Promise<FacebookAd[]> {
+  if (isDemoMode()) return [];
+  try {
+    const payload = await api.get<
+      Record<string, unknown>[] | { results: Record<string, unknown>[] }
+    >(withOrg(API_ENDPOINTS.marketing.facebookAds, organizationId));
+    return unwrapList(payload).map(mapFacebookAd);
+  } catch {
+    return [];
+  }
+}
+
+export async function createFacebookAd(
+  input: CreateFacebookAdInput,
+  organizationId?: string | null,
+): Promise<FacebookAd> {
+  if (!organizationId) throw new Error("organization_id is required");
+  if (isDemoMode()) {
+    return {
+      id: `fb-${Date.now()}`,
+      name: input.name,
+      captionPrompt: input.captionPrompt,
+      caption: `Ad caption for: ${input.captionPrompt}`,
+      status: input.status || "draft",
+      scheduledAt: input.scheduledAt ?? null,
+      automationEnabled: Boolean(input.automationEnabled),
+      targetAudience: { note: input.targetAudience || "" },
+      budgetCents: input.budgetCents || 0,
+      currency: "usd",
+      metrics: { reach: 0, leads: 0, progress: 0, performance: "pending" },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  const raw = await api.post<Record<string, unknown>>(API_ENDPOINTS.marketing.facebookAds, {
+    organization_id: organizationId,
+    name: input.name,
+    caption_prompt: input.captionPrompt,
+    target_audience: { note: input.targetAudience || "" },
+    budget_cents: input.budgetCents || 0,
+    automation_enabled: Boolean(input.automationEnabled),
+    scheduled_at: input.scheduledAt || null,
+    status: input.status || "draft",
+  });
+  return mapFacebookAd(raw);
+}
+
+export async function refreshFacebookAdMetrics(
+  adId: string,
+  _organizationId?: string | null,
+): Promise<FacebookAd> {
+  if (isDemoMode()) {
+    return {
+      id: adId,
+      name: "Demo Ad",
+      captionPrompt: "",
+      caption: "",
+      status: "active",
+      automationEnabled: true,
+      targetAudience: {},
+      budgetCents: 0,
+      currency: "usd",
+      metrics: { reach: 120, leads: 4, progress: 35, performance: "live" },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  const raw = await api.post<Record<string, unknown>>(
+    API_ENDPOINTS.marketing.facebookAdMetrics(adId),
+    {},
+  );
+  return mapFacebookAd(raw);
+}
+
+export async function fetchSocialPosts(organizationId?: string | null): Promise<SocialPost[]> {
+  if (isDemoMode()) return [];
+  try {
+    const payload = await api.get<
+      Record<string, unknown>[] | { results: Record<string, unknown>[] }
+    >(withOrg(API_ENDPOINTS.marketing.socialPosts, organizationId));
+    return unwrapList(payload).map(mapSocialPost);
+  } catch {
+    return [];
+  }
+}
+
+export async function publishSocialPost(
+  input: PublishSocialPostInput,
+  organizationId?: string | null,
+): Promise<SocialPost> {
+  if (!organizationId) throw new Error("organization_id is required");
+  if (isDemoMode()) {
+    return {
+      id: `sp-${Date.now()}`,
+      content: input.content,
+      platforms: input.platforms,
+      includeWhatsapp: Boolean(input.includeWhatsapp),
+      status: "published",
+      results: Object.fromEntries(input.platforms.map((p) => [p, { ok: true }])),
+      publishedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+  }
+  const raw = await api.post<Record<string, unknown>>(API_ENDPOINTS.marketing.socialPosts, {
+    organization_id: organizationId,
+    content: input.content,
+    platforms: input.platforms,
+    include_whatsapp: Boolean(input.includeWhatsapp),
+  });
+  return mapSocialPost(raw);
 }

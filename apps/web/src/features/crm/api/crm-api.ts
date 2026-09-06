@@ -72,19 +72,27 @@ function mapLead(raw: Record<string, unknown>): Lead {
 }
 
 const VALID_STAGES: PipelineStage[] = [
-  "lead",
-  "qualified",
+  "prospecting",
+  "qualification",
   "proposal",
   "negotiation",
-  "won",
-  "lost",
+  "closed_won",
+  "closed_lost",
 ];
 
+const LEGACY_STAGE_MAP: Record<string, PipelineStage> = {
+  lead: "prospecting",
+  qualified: "qualification",
+  won: "closed_won",
+  lost: "closed_lost",
+};
+
 function toStage(value: unknown): PipelineStage {
-  if (typeof value === "string" && VALID_STAGES.includes(value as PipelineStage)) {
+  if (typeof value !== "string") return "prospecting";
+  if (VALID_STAGES.includes(value as PipelineStage)) {
     return value as PipelineStage;
   }
-  return "lead";
+  return LEGACY_STAGE_MAP[value] ?? "prospecting";
 }
 
 function mapOpportunity(raw: Record<string, unknown>): Opportunity {
@@ -272,7 +280,7 @@ function demoOpportunities(): Opportunity[] {
     {
       id: "o2",
       title: "Globex Pilot",
-      stage: "qualified",
+      stage: "qualification",
       amount: 45000,
       currency: "USD",
       probability: 40,
@@ -304,7 +312,7 @@ function demoOpportunities(): Opportunity[] {
     {
       id: "o4",
       title: "New Lead Opportunity",
-      stage: "lead",
+      stage: "prospecting",
       amount: 20000,
       currency: "USD",
       probability: 15,
@@ -320,7 +328,7 @@ function demoOpportunities(): Opportunity[] {
     {
       id: "o5",
       title: "Mega Corp Win",
-      stage: "won",
+      stage: "closed_won",
       amount: 250000,
       currency: "USD",
       probability: 100,
@@ -388,28 +396,11 @@ function demoActivities(): CrmActivity[] {
 }
 
 function demoPipeline(opportunities: Opportunity[]): PipelineData {
-  const STAGE_LIST: PipelineStage[] = [
-    "lead",
-    "qualified",
-    "proposal",
-    "negotiation",
-    "won",
-    "lost",
-  ];
-  const STAGE_LABELS: Record<PipelineStage, string> = {
-    lead: "Lead",
-    qualified: "Qualified",
-    proposal: "Proposal",
-    negotiation: "Negotiation",
-    won: "Won",
-    lost: "Lost",
-  };
-
-  const grouped = STAGE_LIST.map((stage) => {
+  const grouped = PIPELINE_STAGES_LOCAL.map((stage) => {
     const ops = opportunities.filter((o) => o.stage === stage);
     return {
       stage,
-      label: STAGE_LABELS[stage],
+      label: STAGE_LABELS_LOCAL[stage],
       count: ops.length,
       totalAmount: ops.reduce((sum, o) => sum + o.amount, 0),
       currency: "USD",
@@ -421,6 +412,53 @@ function demoPipeline(opportunities: Opportunity[]): PipelineData {
     stages: grouped,
     totalAmount: opportunities.reduce((sum, o) => sum + o.amount, 0),
     totalCount: opportunities.length,
+  };
+}
+
+const PIPELINE_STAGES_LOCAL: PipelineStage[] = [
+  "prospecting",
+  "qualification",
+  "proposal",
+  "negotiation",
+  "closed_won",
+  "closed_lost",
+];
+
+const STAGE_LABELS_LOCAL: Record<PipelineStage, string> = {
+  prospecting: "Prospecting",
+  qualification: "Qualification",
+  proposal: "Proposal",
+  negotiation: "Negotiation",
+  closed_won: "Closed Won",
+  closed_lost: "Closed Lost",
+};
+
+function normalizePipelinePayload(payload: unknown): PipelineData | null {
+  if (!payload || typeof payload !== "object") return null;
+
+  const obj = payload as Record<string, unknown>;
+  if (Array.isArray(obj.stages)) {
+    return payload as PipelineData;
+  }
+
+  // Backend returns { prospecting: Opportunity[], qualification: [...], ... }
+  const grouped = PIPELINE_STAGES_LOCAL.map((stage) => {
+    const rawItems = Array.isArray(obj[stage]) ? (obj[stage] as Record<string, unknown>[]) : [];
+    const opportunities = rawItems.map(mapOpportunity);
+    return {
+      stage,
+      label: STAGE_LABELS_LOCAL[stage],
+      count: opportunities.length,
+      totalAmount: opportunities.reduce((sum, o) => sum + o.amount, 0),
+      currency: "USD",
+      opportunities,
+    };
+  });
+
+  return {
+    stages: grouped,
+    totalAmount: grouped.reduce((sum, s) => sum + s.totalAmount, 0),
+    totalCount: grouped.reduce((sum, s) => sum + s.count, 0),
   };
 }
 
@@ -520,9 +558,25 @@ export async function createOpportunity(
   payload: CreateOpportunityPayload,
   organizationId?: string | null,
 ): Promise<Opportunity> {
+  if (!organizationId) {
+    throw new Error("organization_id is required to create an opportunity");
+  }
+  if (!payload.company_id) {
+    throw new Error("company_id is required to create an opportunity");
+  }
   const raw = await api.post<Record<string, unknown>>(
     withOrg(API_ENDPOINTS.crm.opportunities, organizationId),
-    payload,
+    {
+      organization_id: organizationId,
+      name: payload.title,
+      stage: payload.stage,
+      amount: payload.amount,
+      currency: payload.currency ?? "USD",
+      probability: payload.probability ?? 10,
+      company_id: payload.company_id,
+      contact_id: payload.contact_id ?? null,
+      close_date: payload.close_date || null,
+    },
   );
   return mapOpportunity(raw);
 }
@@ -542,9 +596,8 @@ export async function fetchPipeline(organizationId?: string | null): Promise<Pip
   }
   try {
     const payload = await api.get<unknown>(withOrg(API_ENDPOINTS.crm.pipeline, organizationId));
-    if (payload && typeof payload === "object" && "stages" in (payload as object)) {
-      return payload as PipelineData;
-    }
+    const normalized = normalizePipelinePayload(payload);
+    if (normalized) return normalized;
     const opps = unwrapList<Record<string, unknown>>(
       payload as Record<string, unknown>[] | { results?: Record<string, unknown>[] },
     ).map(mapOpportunity);

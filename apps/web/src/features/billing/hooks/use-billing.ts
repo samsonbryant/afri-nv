@@ -2,8 +2,15 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import type {
+  AttachCardInput,
+  CheckoutInput,
+  CouponInput,
+  CreateManualPaymentInput,
+} from "@/features/billing/types";
 import {
   applyCoupon,
+  attachCard,
   createCheckout,
   createManualPayment,
   fetchInvoices,
@@ -13,11 +20,6 @@ import {
   fetchSubscription,
   fetchUsage,
 } from "@/features/billing/api/billing-api";
-import type {
-  CheckoutInput,
-  CouponInput,
-  CreateManualPaymentInput,
-} from "@/features/billing/types";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
 import { useOrganizationsStore } from "@/features/organizations/stores/organizations-store";
 import { getErrorMessage } from "@/lib/api/errors";
@@ -128,6 +130,19 @@ export function useCreateManualPayment() {
     onSuccess: () => {
       toast.success("Payment submitted for admin approval");
       void queryClient.invalidateQueries({ queryKey: billingKeys.manualPayments(orgId) });
+      void queryClient.invalidateQueries({ queryKey: billingKeys.subscription(orgId) });
+    },
+    onError: (error) => toast.error(getErrorMessage(error)),
+  });
+}
+
+export function useAttachCard() {
+  const orgId = useOrgId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AttachCardInput) => attachCard(input, orgId),
+    onSuccess: () => {
+      toast.success("Card saved — trial will auto-charge when it ends");
       void queryClient.invalidateQueries({ queryKey: billingKeys.subscription(orgId) });
     },
     onError: (error) => toast.error(getErrorMessage(error)),

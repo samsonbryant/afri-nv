@@ -57,6 +57,7 @@ class StudioDocument(BaseModel):
 
 class DocumentJob(BaseModel):
     class JobType(models.TextChoices):
+        ASK = "ask", "Ask"
         ANALYZE = "analyze", "Analyze"
         SUMMARIZE = "summarize", "Summarize"
         TRANSLATE = "translate", "Translate"

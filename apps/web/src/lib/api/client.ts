@@ -197,7 +197,21 @@ export async function apiClient<T>(path: string, options: ApiClientOptions = {})
     });
   };
 
-  let response = await doFetch(accessToken);
+  let response: Response;
+  try {
+    response = await doFetch(accessToken);
+  } catch (error) {
+    const message =
+      error instanceof TypeError
+        ? "Cannot reach the API. Start the Django server on port 8000 (npm run dev:api)."
+        : error instanceof Error
+          ? error.message
+          : "Network request failed";
+    throw new ApiError(message, {
+      status: 0,
+      code: "network_error",
+    });
+  }
 
   // One refresh retry on 401 for authenticated calls
   if (response.status === 401 && !skipAuth && !isCredentialPath(path) && token === undefined) {

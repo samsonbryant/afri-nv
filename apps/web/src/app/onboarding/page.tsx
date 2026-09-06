@@ -74,7 +74,8 @@ function OnboardingForm() {
           Create your workspace
         </h1>
         <p className="text-muted-foreground text-sm">
-          A workspace is where your team runs workflows and automations.
+          Register your business, pick a plan later, then upload logo, docs, and context so AI can
+          run operations with fewer people.
         </p>
       </div>
 

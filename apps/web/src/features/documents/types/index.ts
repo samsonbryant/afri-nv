@@ -11,7 +11,7 @@ export type StudioDocument = {
 };
 
 export type JobType =
-  "analyze" | "summarize" | "translate" | "compare" | "extract" | "ocr" | "search";
+  "ask" | "analyze" | "summarize" | "translate" | "compare" | "extract" | "ocr" | "search";
 
 export type DocumentJob = {
   id: string;
@@ -55,6 +55,7 @@ export type SearchPayload = {
 };
 
 export const DOCUMENT_ACTIONS: { action: JobType; label: string }[] = [
+  { action: "ask", label: "Ask AI" },
   { action: "analyze", label: "Analyze" },
   { action: "summarize", label: "Summarize" },
   { action: "translate", label: "Translate" },

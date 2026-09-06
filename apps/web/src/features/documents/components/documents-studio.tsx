@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import {
@@ -102,6 +103,8 @@ export function DocumentsStudio() {
   const setTranslateLanguage = useDocumentsStore((s) => s.setTranslateLanguage);
   const compareDocumentId = useDocumentsStore((s) => s.compareDocumentId);
   const setCompareDocumentId = useDocumentsStore((s) => s.setCompareDocumentId);
+  const askPrompt = useDocumentsStore((s) => s.askPrompt);
+  const setAskPrompt = useDocumentsStore((s) => s.setAskPrompt);
 
   const { data: documents = [], isLoading, isError, refetch } = useDocuments();
   const upload = useUploadDocument();
@@ -123,6 +126,18 @@ export function DocumentsStudio() {
   function onAction(action: JobType) {
     if (!selectedDocumentId) {
       toast.message("Select a document first");
+      return;
+    }
+    if (action === "ask") {
+      if (!askPrompt.trim()) {
+        toast.message("Enter a prompt for the AI");
+        return;
+      }
+      runAction.mutate({
+        action,
+        documentId: selectedDocumentId,
+        extra: { prompt: askPrompt.trim() },
+      });
       return;
     }
     if (action === "translate") {
@@ -164,7 +179,7 @@ export function DocumentsStudio() {
     <div className="space-y-6">
       <PageHeader
         title="Documents Studio"
-        description="Upload files and run analyze, summarize, translate, compare, extract, OCR, or search."
+        description="Upload any file type. Ask AI with your own prompt, or run analyze, summarize, translate, compare, extract, OCR, and search."
       />
 
       <div
@@ -206,7 +221,9 @@ export function DocumentsStudio() {
           <UploadCloud className="text-primary mb-3 h-8 w-8" />
         )}
         <p className="text-sm font-medium">Drop files or click to upload</p>
-        <p className="text-muted-foreground mt-1 text-xs">PDFs, office docs, images, and more</p>
+        <p className="text-muted-foreground mt-1 text-xs">
+          All file types supported — PDF, Office, images, code, archives, and more
+        </p>
       </div>
 
       {isError ? (
@@ -299,6 +316,16 @@ export function DocumentsStudio() {
                     ))}
                 </Select>
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ask-prompt">Ask AI prompt</Label>
+              <Textarea
+                id="ask-prompt"
+                value={askPrompt}
+                onChange={(e) => setAskPrompt(e.target.value)}
+                placeholder="What should the AI extract or explain from this document?"
+                className="min-h-[80px]"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="doc-search">Search query</Label>

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { WorkflowsList } from "@/features/workflows/components/workflows-list";
+import { WorkflowsStudio } from "@/features/workflow-builder/components/workflows-studio";
 
 export const metadata: Metadata = {
   title: "Workflows",
 };
 
 export default function WorkflowsPage() {
-  return <WorkflowsList />;
+  return <WorkflowsStudio />;
 }

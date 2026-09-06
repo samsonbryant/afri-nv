@@ -82,3 +82,27 @@ class DodoPaymentsClient:
             "status": "succeeded",
             "stub": self.is_stub,
         }
+
+    def charge_off_session(
+        self,
+        *,
+        organization_id: str,
+        payment_method_ref: str,
+        amount_cents: int,
+        currency: str = "usd",
+        description: str = "",
+    ) -> dict[str, Any]:
+        """Charge a saved card after trial. Stub succeeds when DODO_API_KEY is unset."""
+        charge_id = f"dodo_ch_{uuid4().hex[:14]}"
+        frontend = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
+        return {
+            "id": charge_id,
+            "organization_id": organization_id,
+            "payment_method_ref": payment_method_ref,
+            "amount_cents": amount_cents,
+            "currency": currency,
+            "description": description,
+            "status": "succeeded",
+            "receipt_url": f"{frontend}/billing/receipts/{charge_id}",
+            "stub": self.is_stub,
+        }

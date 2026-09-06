@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import { pickIso, pickNumber, pickString, unwrapList, withOrg } from "@/lib/api/org";
 import { isDemoMode } from "@/lib/constants";
 import type {
+  AttachCardInput,
   BillingPlan,
   CheckoutInput,
   CouponInput,
@@ -84,6 +85,10 @@ function mapSubscription(raw: Record<string, unknown>): Subscription {
   const periodEnd =
     pickString(raw, "currentPeriodEnd", "current_period_end", "renewsAt", "renews_at") ||
     new Date(Date.now() + 86400000 * 30).toISOString();
+  const trialEnd =
+    pickString(raw, "trialEnd", "trial_end") ||
+    (raw.trial_end as string | null | undefined) ||
+    null;
   return {
     id: String(raw.id ?? "sub"),
     planId: pickString(raw, "plan_code", "planCode", "planId", "plan_id") || "none",
@@ -93,6 +98,11 @@ function mapSubscription(raw: Record<string, unknown>): Subscription {
     renewsAt: periodEnd,
     seats: pickNumber(raw, "seats") || 1,
     cancelAtPeriodEnd: Boolean(raw.cancelAtPeriodEnd ?? raw.cancel_at_period_end),
+    trialEnd,
+    paymentMethod: pickString(raw, "paymentMethod", "payment_method") || undefined,
+    cardLast4: pickString(raw, "cardLast4", "card_last4") || undefined,
+    cardBrand: pickString(raw, "cardBrand", "card_brand") || undefined,
+    autoCharge: Boolean(raw.autoCharge ?? raw.auto_charge ?? true),
   };
 }
 
@@ -284,7 +294,7 @@ function mapManualPayment(raw: Record<string, unknown>): ManualPaymentRequest {
     provider: (pickString(raw, "provider") || "mtn_momo") as ManualPaymentRequest["provider"],
     status: (pickString(raw, "status") || "pending") as ManualPaymentRequest["status"],
     amountCents: pickNumber(raw, "amountCents", "amount_cents"),
-    currency: pickString(raw, "currency") || "xaf",
+    currency: pickString(raw, "currency") || "USD",
     reference: pickString(raw, "reference"),
     payerPhone: pickString(raw, "payerPhone", "payer_phone"),
     payerName: pickString(raw, "payerName", "payer_name") || undefined,
@@ -299,8 +309,7 @@ function mapManualPayment(raw: Record<string, unknown>): ManualPaymentRequest {
 export async function fetchManualPaymentInstructions(): Promise<ManualPaymentInstructions> {
   if (isDemoMode()) {
     return {
-      currency: "xaf",
-      usdToLocalRate: 600,
+      currency: "USD",
       providers: [
         {
           id: "mtn_momo",
@@ -317,7 +326,7 @@ export async function fetchManualPaymentInstructions(): Promise<ManualPaymentIns
       ],
       steps: [
         "Choose a plan and payment method.",
-        "Send the exact amount using the payment reference.",
+        "Send the exact USD amount using the payment reference.",
         "Submit your transaction ID for admin approval.",
       ],
     };
@@ -327,8 +336,7 @@ export async function fetchManualPaymentInstructions(): Promise<ManualPaymentIns
   );
   const providersRaw = Array.isArray(raw.providers) ? raw.providers : [];
   return {
-    currency: pickString(raw, "currency") || "xaf",
-    usdToLocalRate: pickNumber(raw, "usdToLocalRate", "usd_to_local_rate") || 600,
+    currency: pickString(raw, "currency") || "USD",
     providers: providersRaw.map((item) => {
       const row = item as Record<string, unknown>;
       return {
@@ -369,7 +377,7 @@ export async function createManualPayment(
       provider: input.provider,
       status: "submitted",
       amountCents: 0,
-      currency: "xaf",
+      currency: "USD",
       reference: `NVX-DEMO`,
       payerPhone: input.payerPhone,
       transactionId: input.transactionId,
@@ -386,4 +394,35 @@ export async function createManualPayment(
     notes: input.notes ?? "",
   });
   return mapManualPayment(raw);
+}
+
+export async function attachCard(
+  input: AttachCardInput,
+  organizationId?: string | null,
+): Promise<Subscription> {
+  if (!organizationId) {
+    throw new Error("organization_id is required to attach a card");
+  }
+  if (isDemoMode()) {
+    return {
+      id: "sub-demo",
+      planId: "starter",
+      planName: "Starter",
+      status: "trialing",
+      currentPeriodEnd: new Date(Date.now() + 86400000 * 15).toISOString(),
+      trialEnd: new Date(Date.now() + 86400000 * 15).toISOString(),
+      seats: 5,
+      paymentMethod: "card",
+      cardLast4: input.cardLast4 || "4242",
+      cardBrand: input.cardBrand || "visa",
+      autoCharge: true,
+    };
+  }
+  const raw = await api.post<Record<string, unknown>>(API_ENDPOINTS.billing.attachCard, {
+    organization_id: organizationId,
+    payment_method_ref: input.paymentMethodRef,
+    card_last4: input.cardLast4 ?? "",
+    card_brand: input.cardBrand ?? "",
+  });
+  return mapSubscription(raw);
 }

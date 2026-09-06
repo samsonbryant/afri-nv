@@ -31,6 +31,13 @@ export type Organization = {
   slug: string;
   role?: "owner" | "admin" | "member";
   createdAt: string;
+  description?: string;
+  industry?: string;
+  website?: string;
+  phone?: string;
+  address?: string;
+  logoUrl?: string | null;
+  plan?: string;
 };
 
 export type AuthTokens = {

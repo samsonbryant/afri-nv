@@ -208,15 +208,26 @@ class KnowledgeService:
                 "\n\n".join(f"[{i + 1}] {c.content}" for i, c in enumerate(chunks))
                 or "(No knowledge chunks available.)"
             )
+            from apps.organizations.infrastructure.models import Organization
+
+            org = Organization.objects.filter(pk=conversation.organization_id).first()
+            org_line = ""
+            if org:
+                org_line = (
+                    f"Business: {org.name}. Industry: {org.industry or 'n/a'}. "
+                    f"About: {(org.description or '')[:500]}"
+                )
             system = (
-                "You are a knowledge-base assistant for Novixa. "
-                "Answer only from the provided context when possible."
+                "You are a knowledge-base assistant for Novixa working in real time. "
+                "Answer thoroughly from the provided context and organization profile when possible."
             )
+            if org_line:
+                system += f"\nOrganization profile: {org_line}"
             if tier.is_free:
                 system += " Keep the answer under 3 short sentences."
             answer = complete(
                 f"Question: {data.content}\n\nContext:\n{context}\n\n"
-                "Answer using the context. Cite sources as [1], [2], etc.",
+                "Answer using the context. Cite sources as [1], [2], etc. Be detailed when asked.",
                 system=system,
                 organization_id=str(conversation.organization_id),
                 max_tokens=tier.max_tokens,

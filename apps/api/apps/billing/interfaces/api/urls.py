@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.urls import path
 
 from apps.billing.interfaces.api.views import (
+    AttachCardView,
     CheckoutView,
     CouponValidateView,
     DodoWebhookView,
@@ -23,6 +24,7 @@ urlpatterns = [
     path("plans/", PlanListView.as_view(), name="plans"),
     path("subscription/", SubscriptionView.as_view(), name="subscription"),
     path("checkout/", CheckoutView.as_view(), name="checkout"),
+    path("attach-card/", AttachCardView.as_view(), name="attach-card"),
     path("portal/", PortalView.as_view(), name="portal"),
     path("invoices/", InvoiceListView.as_view(), name="invoices"),
     path("coupons/validate/", CouponValidateView.as_view(), name="coupon-validate"),

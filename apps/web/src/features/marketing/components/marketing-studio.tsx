@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy, Loader2, Megaphone, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,15 +14,25 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   useCampaigns,
+  useConnectSocial,
+  useCreateFacebookAd,
+  useDisconnectSocial,
+  useFacebookAds,
   useGenerateMarketingAsset,
   useMarketingAssets,
+  usePublishSocialPost,
+  useRefreshFacebookAd,
+  useSocialConnections,
+  useSocialPosts,
 } from "@/features/marketing/hooks/use-marketing";
 import { useMarketingStore } from "@/features/marketing/stores/marketing-store";
 import {
   ASSET_TYPE_LABELS,
+  SOCIAL_PLATFORMS,
   TONE_LABELS,
   type MarketingAssetType,
   type MarketingTone,
+  type SocialPlatform,
 } from "@/features/marketing/types";
 import { formatRelative } from "@/lib/utils/format";
 
@@ -242,19 +253,342 @@ function CampaignsList() {
   );
 }
 
+function SocialConnectionsPanel() {
+  const { data = [], isLoading } = useSocialConnections();
+  const connect = useConnectSocial();
+  const disconnect = useDisconnectSocial();
+  const [platform, setPlatform] = useState<SocialPlatform>("facebook");
+  const [accountName, setAccountName] = useState("");
+
+  return (
+    <div className="space-y-4">
+      <form
+        className="border-border bg-card space-y-3 rounded-xl border p-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!accountName.trim()) return;
+          connect.mutate(
+            { platform, accountName: accountName.trim() },
+            { onSuccess: () => setAccountName("") },
+          );
+        }}
+      >
+        <p className="text-muted-foreground text-sm">
+          Connect every social page for this business — including WhatsApp — for realtime posting
+          and ads.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="social-platform">Platform</Label>
+            <Select
+              id="social-platform"
+              value={platform}
+              onChange={(e) => setPlatform(e.target.value as SocialPlatform)}
+            >
+              {SOCIAL_PLATFORMS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="social-account">Page / account name</Label>
+            <Input
+              id="social-account"
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+              placeholder="Acme Marketing"
+              required
+            />
+          </div>
+        </div>
+        <Button type="submit" disabled={connect.isPending || !accountName.trim()}>
+          {connect.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          Connect
+        </Button>
+      </form>
+
+      {isLoading ? (
+        <Skeleton className="h-24 w-full rounded-xl" />
+      ) : data.length === 0 ? (
+        <EmptyState
+          icon={Megaphone}
+          title="No social accounts connected"
+          description="Connect Facebook, Instagram, LinkedIn, WhatsApp, and more."
+        />
+      ) : (
+        <ul className="space-y-2">
+          {data.map((conn) => (
+            <li
+              key={conn.id}
+              className="border-border bg-card flex items-center justify-between gap-3 rounded-xl border px-4 py-3"
+            >
+              <div>
+                <p className="font-medium">{conn.accountName}</p>
+                <p className="text-muted-foreground text-xs">
+                  {conn.platform} · {conn.status}
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => disconnect.mutate(conn.id)}
+              >
+                Disconnect
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function FacebookAdsPanel() {
+  const { data = [], isLoading } = useFacebookAds();
+  const createAd = useCreateFacebookAd();
+  const refresh = useRefreshFacebookAd();
+  const [name, setName] = useState("");
+  const [captionPrompt, setCaptionPrompt] = useState("");
+  const [target, setTarget] = useState("");
+  const [automation, setAutomation] = useState(true);
+
+  return (
+    <div className="space-y-4">
+      <form
+        className="border-border bg-card space-y-3 rounded-xl border p-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!captionPrompt.trim()) return;
+          createAd.mutate(
+            {
+              name: name.trim() || "Facebook Ad",
+              captionPrompt: captionPrompt.trim(),
+              targetAudience: target.trim(),
+              automationEnabled: automation,
+              status: "scheduled",
+            },
+            {
+              onSuccess: () => {
+                setName("");
+                setCaptionPrompt("");
+                setTarget("");
+              },
+            },
+          );
+        }}
+      >
+        <p className="text-muted-foreground text-sm">
+          Create caption prompts, schedule ads, automate leads, and track reach, target, and
+          progress in realtime.
+        </p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="ad-name">Ad name</Label>
+            <Input id="ad-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ad-target">Target audience</Label>
+            <Input
+              id="ad-target"
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              placeholder="SMBs in West Africa, 25–45"
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ad-prompt">Caption prompt</Label>
+          <Textarea
+            id="ad-prompt"
+            value={captionPrompt}
+            onChange={(e) => setCaptionPrompt(e.target.value)}
+            placeholder="Promote our 15-day unlimited trial…"
+            required
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={automation}
+            onChange={(e) => setAutomation(e.target.checked)}
+          />
+          Enable automation & lead capture
+        </label>
+        <Button type="submit" disabled={createAd.isPending || !captionPrompt.trim()}>
+          {createAd.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          Create Facebook ad
+        </Button>
+      </form>
+
+      {isLoading ? (
+        <Skeleton className="h-32 w-full rounded-xl" />
+      ) : data.length === 0 ? (
+        <EmptyState
+          icon={Megaphone}
+          title="No Facebook ads yet"
+          description="Create an ad with a caption prompt to get started."
+        />
+      ) : (
+        <ul className="space-y-3">
+          {data.map((ad) => (
+            <li key={ad.id} className="border-border bg-card space-y-3 rounded-xl border p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-medium">{ad.name}</h3>
+                  <Badge variant="secondary">{ad.status}</Badge>
+                  {ad.automationEnabled ? <Badge variant="outline">Automation</Badge> : null}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => refresh.mutate(ad.id)}
+                >
+                  Refresh metrics
+                </Button>
+              </div>
+              <pre className="bg-muted/40 whitespace-pre-wrap rounded-lg p-3 text-sm">
+                {ad.caption}
+              </pre>
+              <div className="text-muted-foreground grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
+                <span>Reach: {ad.metrics.reach ?? 0}</span>
+                <span>Leads: {ad.metrics.leads ?? 0}</span>
+                <span>Clicks: {ad.metrics.clicks ?? 0}</span>
+                <span>Progress: {ad.metrics.progress ?? 0}%</span>
+                <span>Perf: {ad.metrics.performance ?? "—"}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function PublishPanel() {
+  const { data = [], isLoading } = useSocialPosts();
+  const publish = usePublishSocialPost();
+  const [content, setContent] = useState("");
+  const [platforms, setPlatforms] = useState<string[]>(["facebook", "instagram", "whatsapp"]);
+  const [includeWhatsapp, setIncludeWhatsapp] = useState(true);
+
+  function togglePlatform(id: string) {
+    setPlatforms((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+  }
+
+  return (
+    <div className="space-y-4">
+      <form
+        className="border-border bg-card space-y-3 rounded-xl border p-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!content.trim() || platforms.length === 0) return;
+          publish.mutate(
+            {
+              content: content.trim(),
+              platforms,
+              includeWhatsapp,
+            },
+            { onSuccess: () => setContent("") },
+          );
+        }}
+      >
+        <p className="text-muted-foreground text-sm">
+          Share content across connected pages and WhatsApp simultaneously in realtime.
+        </p>
+        <div className="space-y-1.5">
+          <Label htmlFor="post-content">Content</Label>
+          <Textarea
+            id="post-content"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            className="min-h-[120px]"
+            required
+          />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {SOCIAL_PLATFORMS.map((p) => (
+            <Button
+              key={p.id}
+              type="button"
+              size="sm"
+              variant={platforms.includes(p.id) ? "default" : "outline"}
+              onClick={() => togglePlatform(p.id)}
+            >
+              {p.label}
+            </Button>
+          ))}
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={includeWhatsapp}
+            onChange={(e) => setIncludeWhatsapp(e.target.checked)}
+          />
+          Also push to WhatsApp Business
+        </label>
+        <Button type="submit" disabled={publish.isPending || !content.trim()}>
+          {publish.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          Publish now
+        </Button>
+      </form>
+
+      {isLoading ? (
+        <Skeleton className="h-24 w-full rounded-xl" />
+      ) : data.length === 0 ? (
+        <EmptyState
+          icon={Megaphone}
+          title="No posts yet"
+          description="Publish once to see realtime delivery results."
+        />
+      ) : (
+        <ul className="space-y-3">
+          {data.map((post) => (
+            <li key={post.id} className="border-border bg-card rounded-xl border p-4">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <Badge variant="secondary">{post.status}</Badge>
+                <span className="text-muted-foreground text-xs">
+                  {post.platforms.join(", ")}
+                  {post.publishedAt ? ` · ${formatRelative(post.publishedAt)}` : ""}
+                </span>
+              </div>
+              <pre className="whitespace-pre-wrap text-sm">{post.content}</pre>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function MarketingStudio() {
   return (
     <div>
       <PageHeader
         title="Marketing Studio"
-        description="Generate channel-ready copy and review campaigns."
+        description="Connect social pages, run Facebook ads, publish everywhere including WhatsApp, and generate channel-ready copy — end to end in realtime."
       />
-      <Tabs defaultValue="generate">
-        <TabsList>
+      <Tabs defaultValue="social">
+        <TabsList className="flex h-auto flex-wrap gap-1">
+          <TabsTrigger value="social">Social connect</TabsTrigger>
+          <TabsTrigger value="facebook">Facebook ads</TabsTrigger>
+          <TabsTrigger value="publish">Publish</TabsTrigger>
           <TabsTrigger value="generate">Generate</TabsTrigger>
           <TabsTrigger value="assets">Assets</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
         </TabsList>
+        <TabsContent value="social" className="space-y-6">
+          <SocialConnectionsPanel />
+        </TabsContent>
+        <TabsContent value="facebook" className="space-y-6">
+          <FacebookAdsPanel />
+        </TabsContent>
+        <TabsContent value="publish" className="space-y-6">
+          <PublishPanel />
+        </TabsContent>
         <TabsContent value="generate" className="space-y-6">
           <GeneratorForm />
           <AssetGallery />

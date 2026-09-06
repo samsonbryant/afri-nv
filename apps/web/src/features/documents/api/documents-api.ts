@@ -153,6 +153,17 @@ export async function analyzeDocument(payload: AnalyzePayload): Promise<Document
   });
 }
 
+export async function askDocument(payload: {
+  documentId: string;
+  prompt: string;
+}): Promise<DocumentJob> {
+  if (isDemoMode()) return demoJob("ask", payload.documentId);
+  return createJob(payload.documentId, "ask", {
+    prompt: payload.prompt,
+    question: payload.prompt,
+  });
+}
+
 export async function summarizeDocument(payload: SummarizePayload): Promise<DocumentJob> {
   if (isDemoMode()) return demoJob("summarize", payload.documentId);
   return createJob(payload.documentId, "summarize", {

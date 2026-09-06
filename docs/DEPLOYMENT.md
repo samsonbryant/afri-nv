@@ -39,14 +39,15 @@ MTN_MOMO_NUMBER=670000000
 MTN_MOMO_ACCOUNT_NAME=Novixa
 ORANGE_MONEY_NUMBER=690000000
 ORANGE_MONEY_ACCOUNT_NAME=Novixa
-MANUAL_PAYMENT_CURRENCY=xaf
-MANUAL_PAYMENT_USD_TO_LOCAL_RATE=600
+MANUAL_PAYMENT_CURRENCY=usd
 GOOGLE_OAUTH_CLIENT_ID=...
 GITHUB_OAUTH_CLIENT_ID=...
 GITHUB_OAUTH_CLIENT_SECRET=...
 SENTRY_DSN=...
 SOCIAL_AUTH_STUB=False
 ```
+
+Payments are **USD only** — plan prices and mobile-money requests use USD amounts (no local FX conversion).
 
 `ALLOWED_HOSTS` defaults in the blueprint; the API also auto-appends Render’s `RENDER_EXTERNAL_HOSTNAME` so health checks pass even if the env var is empty. Blank `CORS_*` / `CSRF_*` values are ignored, and `FRONTEND_URL` is always merged into both. `SECRET_KEY`, `DATABASE_URL`, Redis URLs, and `JWT_SIGNING_KEY` are provided by the blueprint.
 

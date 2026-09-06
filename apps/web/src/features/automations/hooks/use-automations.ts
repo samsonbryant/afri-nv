@@ -23,6 +23,7 @@ export function useAutomations() {
   return useQuery({
     queryKey: automationKeys.lists(orgId),
     enabled: Boolean(orgId),
+    refetchInterval: 10_000,
     queryFn: async () => {
       try {
         return await fetchAutomations(orgId);

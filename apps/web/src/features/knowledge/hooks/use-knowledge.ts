@@ -38,6 +38,7 @@ export function useKnowledgeDocuments() {
   return useQuery({
     queryKey: knowledgeKeys.documents(orgId),
     queryFn: () => fetchKnowledgeDocuments(orgId),
+    refetchInterval: 15000,
   });
 }
 
@@ -64,6 +65,7 @@ export function useKnowledgeMessages(conversationId: string | null) {
     queryKey: knowledgeKeys.messages(conversationId, orgId),
     queryFn: () => fetchKnowledgeMessages(conversationId!, orgId),
     enabled: Boolean(conversationId),
+    refetchInterval: 5000,
   });
 }
 

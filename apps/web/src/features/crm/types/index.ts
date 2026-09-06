@@ -1,21 +1,22 @@
-export type PipelineStage = "lead" | "qualified" | "proposal" | "negotiation" | "won" | "lost";
+export type PipelineStage =
+  "prospecting" | "qualification" | "proposal" | "negotiation" | "closed_won" | "closed_lost";
 
 export const PIPELINE_STAGES: PipelineStage[] = [
-  "lead",
-  "qualified",
+  "prospecting",
+  "qualification",
   "proposal",
   "negotiation",
-  "won",
-  "lost",
+  "closed_won",
+  "closed_lost",
 ];
 
 export const STAGE_LABELS: Record<PipelineStage, string> = {
-  lead: "Lead",
-  qualified: "Qualified",
+  prospecting: "Prospecting",
+  qualification: "Qualification",
   proposal: "Proposal",
   negotiation: "Negotiation",
-  won: "Won",
-  lost: "Lost",
+  closed_won: "Closed Won",
+  closed_lost: "Closed Lost",
 };
 
 export type Company = {
@@ -96,14 +97,16 @@ export type CreateCompanyPayload = {
   name: string;
   domain?: string;
   industry?: string;
+  size?: string;
   website?: string;
   phone?: string;
+  address?: string;
 };
 
 export type CreateContactPayload = {
   first_name: string;
   last_name: string;
-  email: string;
+  email?: string;
   phone?: string;
   title?: string;
   company_id?: string;
@@ -112,10 +115,11 @@ export type CreateContactPayload = {
 export type CreateLeadPayload = {
   first_name: string;
   last_name: string;
-  email: string;
+  email?: string;
   phone?: string;
   company?: string;
   source?: string;
+  status?: string;
   notes?: string;
 };
 
@@ -125,7 +129,7 @@ export type CreateOpportunityPayload = {
   amount: number;
   currency?: string;
   probability?: number;
-  company_id?: string;
+  company_id: string;
   contact_id?: string;
   close_date?: string;
   description?: string;

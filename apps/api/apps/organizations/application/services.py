@@ -40,6 +40,14 @@ class OrganizationService:
         if self._orgs.get_by_slug(data.slug):
             raise OrganizationSlugExistsError()
         org = self._orgs.create(name=data.name, slug=data.slug, plan=data.plan)
+        # Seed business profile fields when provided at create time.
+        if any([data.description, data.industry, data.website, data.phone, data.address]):
+            org.description = data.description or ""
+            org.industry = data.industry or ""
+            org.website = data.website or ""
+            org.phone = data.phone or ""
+            org.address = data.address or ""
+            org = self._orgs.update(org)
         self._memberships.create(
             user_id=actor_id,
             organization_id=org.id,
@@ -91,7 +99,35 @@ class OrganizationService:
             org.name = data.name
         if data.plan is not None:
             org.plan = data.plan
+        if data.description is not None:
+            org.description = data.description
+        if data.industry is not None:
+            org.industry = data.industry
+        if data.website is not None:
+            org.website = data.website
+        if data.phone is not None:
+            org.phone = data.phone
+        if data.address is not None:
+            org.address = data.address
+        if data.business_context is not None:
+            org.business_context = data.business_context
         return self._org_dto(self._orgs.update(org))
+
+    def update_logo(self, actor_id: UUID, org_id: UUID, uploaded) -> OrganizationDTO:
+        """Attach a business logo used by marketing and AI agents."""
+        self._require_role(actor_id, org_id, _ADMIN_ROLES)
+        from apps.organizations.infrastructure.models import Organization
+
+        try:
+            orm = Organization.objects.get(pk=org_id)
+        except Organization.DoesNotExist as exc:
+            raise OrganizationNotFoundError() from exc
+        orm.logo = uploaded
+        orm.save(update_fields=["logo", "updated_at"])
+        org = self._orgs.get_by_id(org_id)
+        if org is None:
+            raise OrganizationNotFoundError()
+        return self._org_dto(org)
 
     def delete(self, actor_id: UUID, org_id: UUID) -> None:
         self._require_role(actor_id, org_id, {MembershipRole.OWNER})
@@ -147,6 +183,13 @@ class OrganizationService:
             plan=org.plan,
             created_at=org.created_at,
             updated_at=org.updated_at,
+            description=org.description,
+            industry=org.industry,
+            website=org.website,
+            phone=org.phone,
+            address=org.address,
+            business_context=org.business_context or {},
+            logo_url=org.logo_url,
         )
 
     @staticmethod

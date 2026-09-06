@@ -378,6 +378,7 @@ MTN_MOMO_NUMBER = env("MTN_MOMO_NUMBER", default="")
 MTN_MOMO_ACCOUNT_NAME = env("MTN_MOMO_ACCOUNT_NAME", default="Novixa")
 ORANGE_MONEY_NUMBER = env("ORANGE_MONEY_NUMBER", default="")
 ORANGE_MONEY_ACCOUNT_NAME = env("ORANGE_MONEY_ACCOUNT_NAME", default="Novixa")
-MANUAL_PAYMENT_CURRENCY = env("MANUAL_PAYMENT_CURRENCY", default="xaf")
-# Optional FX: USD plan amount * rate ≈ local currency (e.g. 600 for XAF)
-MANUAL_PAYMENT_USD_TO_LOCAL_RATE = env.int("MANUAL_PAYMENT_USD_TO_LOCAL_RATE", default=600)
+# Payments are USD-only (plan prices and manual MoMo/Orange requests).
+MANUAL_PAYMENT_CURRENCY = env("MANUAL_PAYMENT_CURRENCY", default="usd").lower()
+if MANUAL_PAYMENT_CURRENCY != "usd":
+    MANUAL_PAYMENT_CURRENCY = "usd"

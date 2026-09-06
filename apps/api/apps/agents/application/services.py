@@ -100,28 +100,65 @@ class AgentService:
     def _specialize_response(
         self, agent: Agent, message: str, context: dict
     ) -> tuple[str, int, list]:
-        prefixes = {
-            "sales": "Sales insight",
-            "marketing": "Marketing brief",
-            "hr": "HR guidance",
-            "finance": "Finance note",
-            "legal": "Legal checklist",
-            "research": "Research summary",
-            "support": "Support reply",
-            "executive": "Executive brief",
-        }
-        label = prefixes.get(agent.type, "Agent reply")
-        ctx_bits = ", ".join(f"{k}={v}" for k, v in list(context.items())[:5])
-        body = (
-            f"[{label} | {agent.name}] Based on your request: {message.strip()}"
-            + (f" (context: {ctx_bits})" if ctx_bits else "")
-            + f"\n\nSystem stance: {agent.system_prompt[:200]}"
+        from apps.organizations.infrastructure.models import Organization
+        from infrastructure.ai.llm import complete
+        from infrastructure.ai.quota import evaluate_free_tier, record_ai_usage
+
+        org = Organization.objects.filter(pk=agent.organization_id).first()
+        org_bits = []
+        if org:
+            org_bits.append(f"Business: {org.name}")
+            if org.industry:
+                org_bits.append(f"Industry: {org.industry}")
+            if org.description:
+                org_bits.append(f"About: {org.description[:800]}")
+            if org.website:
+                org_bits.append(f"Website: {org.website}")
+            if org.business_context:
+                org_bits.append(f"Context: {org.business_context}")
+        ctx_bits = ", ".join(f"{k}={v}" for k, v in list(context.items())[:8])
+        decision = evaluate_free_tier(agent.organization_id)
+        if not decision.allowed:
+            from infrastructure.ai.quota import blocked_upgrade_reply
+
+            return blocked_upgrade_reply(message), 0, []
+
+        system = (
+            f"You are {agent.name}, a Novixa {agent.type} agent working in real time for this "
+            f"organization. Be detailed, practical, and actionable.\n"
+            f"Agent playbook:\n{agent.system_prompt}\n"
+            f"Organization profile:\n" + ("\n".join(org_bits) or "Not provided yet.")
+        )
+        prompt = message.strip()
+        if ctx_bits:
+            prompt = f"{prompt}\n\nRuntime context: {ctx_bits}"
+        try:
+            body = complete(
+                prompt,
+                system=system,
+                temperature=0.35,
+                max_tokens=decision.max_tokens,
+                organization_id=str(agent.organization_id),
+            )
+        except Exception:
+            body = (
+                f"[{agent.name}] I could not reach the AI provider just now. "
+                f"Here is a structured draft based on your request:\n\n{message.strip()}"
+            )
+        record_ai_usage(
+            agent.organization_id,
+            tokens=max(12, len(body.split())),
+            feature=f"agent:{agent.type}",
         )
         citations = [
-            {"title": f"{agent.type} playbook", "url": f"https://novixa.ai/agents/{agent.type}"}
+            {
+                "title": f"{agent.type} playbook",
+                "url": f"https://novixa.ai/agents/{agent.type}",
+            }
         ]
-        tokens = max(12, len(body.split()))
-        return body, tokens, citations
+        if org:
+            citations.append({"title": org.name, "url": org.website or ""})
+        return body, max(12, len(body.split())), citations
 
     def _require_member(self, user_id: UUID, organization_id: UUID) -> None:
         if self._memberships.get(user_id, organization_id) is None:

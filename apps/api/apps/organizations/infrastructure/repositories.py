@@ -39,7 +39,25 @@ class DjangoOrganizationRepository(AbstractOrganizationRepository):
         orm = Organization.objects.get(pk=org.id)
         orm.name = org.name
         orm.plan = org.plan
-        orm.save(update_fields=["name", "plan", "updated_at"])
+        orm.description = org.description
+        orm.industry = org.industry
+        orm.website = org.website
+        orm.phone = org.phone
+        orm.address = org.address
+        orm.business_context = org.business_context or {}
+        orm.save(
+            update_fields=[
+                "name",
+                "plan",
+                "description",
+                "industry",
+                "website",
+                "phone",
+                "address",
+                "business_context",
+                "updated_at",
+            ]
+        )
         return self._to_entity(orm)
 
     def delete(self, org_id: UUID) -> None:
@@ -47,6 +65,12 @@ class DjangoOrganizationRepository(AbstractOrganizationRepository):
 
     @staticmethod
     def _to_entity(org: Organization) -> OrganizationEntity:
+        logo_url = None
+        if org.logo:
+            try:
+                logo_url = org.logo.url
+            except Exception:
+                logo_url = None
         return OrganizationEntity(
             id=org.id,
             name=org.name,
@@ -54,6 +78,13 @@ class DjangoOrganizationRepository(AbstractOrganizationRepository):
             plan=org.plan,
             created_at=org.created_at,
             updated_at=org.updated_at,
+            description=org.description or "",
+            industry=org.industry or "",
+            website=org.website or "",
+            phone=org.phone or "",
+            address=org.address or "",
+            business_context=org.business_context or {},
+            logo_url=logo_url,
         )
 
 

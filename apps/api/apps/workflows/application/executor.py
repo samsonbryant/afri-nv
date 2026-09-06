@@ -77,26 +77,76 @@ def _run_ai(prompt: str, context: dict[str, Any], organization_id: str | None = 
 
 
 def _run_http(config: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    """Call an external API in real time; auto-detect OpenAPI when discover=true."""
     url = str(config.get("url") or "").strip()
+    discover = bool(config.get("discover") or config.get("detect_api"))
+    if not url and discover:
+        base = str(config.get("base_url") or context.get("api_base") or "").rstrip("/")
+        if base:
+            for path in (
+                "/openapi.json",
+                "/swagger.json",
+                "/api/schema/",
+                "/.well-known/openapi.json",
+            ):
+                probe = _http_call(f"{base}{path}", "GET", None)
+                if probe.get("status") and int(probe["status"]) < 400:
+                    return {
+                        "detected": True,
+                        "schema_url": f"{base}{path}",
+                        "status": probe["status"],
+                        "body_preview": str(probe.get("body") or "")[:2000],
+                    }
+            return {"detected": False, "reason": "no_openapi_found", "base_url": base}
+        return {"skipped": True, "reason": "missing_url"}
     if not url:
         return {"skipped": True, "reason": "missing_url"}
     method = str(config.get("method") or "GET").upper()
-    body = json.dumps(context).encode("utf-8") if method in {"POST", "PUT", "PATCH"} else None
-    req = urllib_request.Request(
+    payload = config.get("body")
+    if payload is None and method in {"POST", "PUT", "PATCH"}:
+        payload = context.get("input") or context
+    body = json.dumps(payload).encode("utf-8") if payload is not None and method != "GET" else None
+    result = _http_call(
         url,
-        data=body,
-        method=method,
-        headers={"Content-Type": "application/json", "Accept": "application/json"},
+        method,
+        body,
+        headers=config.get("headers") if isinstance(config.get("headers"), dict) else None,
     )
+    context["last_http"] = result
+    return result
+
+
+def _http_call(
+    url: str,
+    method: str,
+    body: bytes | None,
+    headers: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    hdrs = {"Content-Type": "application/json", "Accept": "application/json"}
+    if headers:
+        hdrs.update({str(k): str(v) for k, v in headers.items()})
+    req = urllib_request.Request(url, data=body, method=method, headers=hdrs)
     try:
-        with urllib_request.urlopen(req, timeout=15) as resp:
-            raw = resp.read(8_000)
+        with urllib_request.urlopen(req, timeout=20) as resp:
+            raw = resp.read(12_000)
             return {
+                "ok": True,
                 "status": getattr(resp, "status", 200),
-                "body": raw.decode("utf-8", errors="replace")[:4000],
+                "body": raw.decode("utf-8", errors="replace")[:6000],
+                "url": url,
+                "method": method,
             }
+    except urllib_error.HTTPError as exc:
+        detail = exc.read(4000).decode("utf-8", errors="replace") if exc.fp else ""
+        return {
+            "ok": False,
+            "status": exc.code,
+            "error": str(exc.reason),
+            "body": detail[:2000],
+            "url": url,
+        }
     except urllib_error.URLError as exc:
-        return {"error": str(exc)}
+        return {"ok": False, "error": str(exc), "url": url}
 
 
 def execute_workflow_definition(
@@ -146,8 +196,16 @@ def execute_workflow_definition(
                 text = _run_ai(prompt, context, organization_id=organization_id)
                 step["result"] = {"text": text}
                 context["last_ai"] = text
-            elif subtype in {"http_request", "http"}:
+            elif subtype in {"http_request", "http", "detect_api", "api"}:
                 step["result"] = _run_http(config, context)
+                if step["result"].get("body") and config.get("respond_with_ai"):
+                    reply = _run_ai(
+                        str(config.get("prompt") or "Respond to the client using the API result."),
+                        {**context, "api_result": step["result"]},
+                        organization_id=organization_id,
+                    )
+                    step["result"]["client_response"] = reply
+                    context["last_ai"] = reply
             elif subtype in {"send_email", "email", "notify", "create_task"}:
                 step["result"] = {
                     "queued": True,

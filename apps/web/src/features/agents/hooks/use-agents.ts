@@ -50,6 +50,7 @@ export function useAgents() {
     queryKey: agentKeys.list(orgId),
     queryFn: () => fetchAgents(orgId),
     enabled: Boolean(orgId),
+    refetchInterval: 15_000,
   });
 }
 
@@ -60,6 +61,7 @@ export function useAgentRuns(agentId: string | null) {
     queryKey: agentKeys.runs(agentId ?? "", orgId),
     queryFn: () => fetchAgentRuns(agentId!, orgId),
     enabled: canFetch,
+    refetchInterval: 8_000,
   });
 }
 

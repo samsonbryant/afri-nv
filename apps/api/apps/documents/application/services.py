@@ -77,6 +77,10 @@ class DocumentStudioService:
         doc = self._get_document(document_id)
         self._require_member(actor_id, doc.organization_id)
         params = params or {}
+        if job_type == DocumentJob.JobType.ASK and not (
+            params.get("prompt") or params.get("question")
+        ):
+            raise InvalidDocumentJobError("ask requires prompt.")
         if job_type == DocumentJob.JobType.TRANSLATE and not params.get("target_lang"):
             raise InvalidDocumentJobError("translate requires target_lang.")
         if job_type == DocumentJob.JobType.COMPARE and not params.get("other_document_id"):
@@ -137,6 +141,21 @@ class DocumentStudioService:
         text = doc.extracted_text or f"(No extracted text for {doc.title})"
         params = job.params or {}
         job_type = job.job_type
+
+        if job_type == DocumentJob.JobType.ASK:
+            prompt = (params.get("prompt") or params.get("question") or "").strip()
+            if not prompt:
+                raise InvalidDocumentJobError("ask requires prompt.")
+            content = complete(
+                f"Document title: {doc.title}\n\nDocument content:\n{text[:12000]}\n\n"
+                f"User question / prompt:\n{prompt}",
+                system=(
+                    "You are Novixa Document AI. Answer using only the document when possible. "
+                    "Be detailed, cite sections, and say when information is missing."
+                ),
+                organization_id=str(doc.organization_id),
+            )
+            return {"prompt": prompt, "answer": content}
 
         if job_type == DocumentJob.JobType.SUMMARIZE:
             content = complete(
@@ -247,7 +266,7 @@ class DocumentStudioService:
                     text = "\n".join(p.text for p in document.paragraphs if p.text.strip())
                 except Exception as exc:
                     text = f"[DOCX extract failed] {doc.title}: {exc}"
-            elif name.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp")):
+            elif name.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tiff", ".tif")):
                 try:
                     import pytesseract
                     from PIL import Image
@@ -255,11 +274,21 @@ class DocumentStudioService:
                     text = pytesseract.image_to_string(Image.open(io.BytesIO(raw)))
                 except Exception as exc:
                     text = f"[OCR unavailable] {Path(doc.file.name).name}: {exc}"
+            elif name.endswith((".json", ".xml", ".html", ".htm", ".rtf", ".log", ".yml", ".yaml")):
+                text = raw.decode("utf-8", errors="replace")
             else:
+                # Accept all other kinds: attempt text decode, else store metadata marker.
                 try:
-                    text = raw.decode("utf-8", errors="replace")
+                    decoded = raw.decode("utf-8", errors="strict")
+                    text = decoded if any(c.isprintable() for c in decoded[:500]) else ""
                 except Exception:
-                    text = f"[Binary file] {doc.title}"
+                    text = ""
+                if not text:
+                    text = (
+                        f"[Binary/uploaded file] {doc.title} "
+                        f"({Path(doc.file.name).name}, {len(raw)} bytes). "
+                        "Ask Novixa to analyze once OCR/extractors are available for this type."
+                    )
 
             doc.extracted_text = (text or "").strip() or f"[Empty] {doc.title}"
             doc.status = StudioDocument.Status.READY
@@ -279,15 +308,28 @@ class DocumentStudioService:
             "docx": StudioDocument.FileType.DOCX,
             "doc": StudioDocument.FileType.DOCX,
             "pptx": StudioDocument.FileType.PPTX,
+            "ppt": StudioDocument.FileType.PPTX,
             "xlsx": StudioDocument.FileType.XLSX,
+            "xls": StudioDocument.FileType.XLSX,
             "csv": StudioDocument.FileType.CSV,
             "txt": StudioDocument.FileType.TEXT,
             "md": StudioDocument.FileType.TEXT,
+            "json": StudioDocument.FileType.TEXT,
+            "xml": StudioDocument.FileType.TEXT,
+            "html": StudioDocument.FileType.TEXT,
+            "htm": StudioDocument.FileType.TEXT,
+            "rtf": StudioDocument.FileType.TEXT,
+            "log": StudioDocument.FileType.TEXT,
+            "yml": StudioDocument.FileType.TEXT,
+            "yaml": StudioDocument.FileType.TEXT,
             "png": StudioDocument.FileType.IMAGE,
             "jpg": StudioDocument.FileType.IMAGE,
             "jpeg": StudioDocument.FileType.IMAGE,
             "webp": StudioDocument.FileType.IMAGE,
             "gif": StudioDocument.FileType.IMAGE,
+            "bmp": StudioDocument.FileType.IMAGE,
+            "tiff": StudioDocument.FileType.IMAGE,
+            "tif": StudioDocument.FileType.IMAGE,
         }
         return mapping.get(ext, StudioDocument.FileType.OTHER)
 

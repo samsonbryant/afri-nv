@@ -12,11 +12,22 @@ class OrganizationWriteSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     slug = serializers.SlugField(max_length=100)
     plan = serializers.ChoiceField(choices=[p.value for p in Plan], default=Plan.FREE.value)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+    industry = serializers.CharField(required=False, allow_blank=True, max_length=128, default="")
+    website = serializers.URLField(required=False, allow_blank=True, default="")
+    phone = serializers.CharField(required=False, allow_blank=True, max_length=64, default="")
+    address = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class OrganizationUpdateSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255, required=False)
     plan = serializers.ChoiceField(choices=[p.value for p in Plan], required=False)
+    description = serializers.CharField(required=False, allow_blank=True)
+    industry = serializers.CharField(required=False, allow_blank=True, max_length=128)
+    website = serializers.CharField(required=False, allow_blank=True)
+    phone = serializers.CharField(required=False, allow_blank=True, max_length=64)
+    address = serializers.CharField(required=False, allow_blank=True)
+    business_context = serializers.DictField(required=False)
 
 
 class OrganizationSerializer(serializers.Serializer):
@@ -24,6 +35,13 @@ class OrganizationSerializer(serializers.Serializer):
     name = serializers.CharField()
     slug = serializers.SlugField()
     plan = serializers.CharField()
+    description = serializers.CharField(required=False, allow_blank=True)
+    industry = serializers.CharField(required=False, allow_blank=True)
+    website = serializers.CharField(required=False, allow_blank=True)
+    phone = serializers.CharField(required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    business_context = serializers.DictField(required=False)
+    logo_url = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
 
@@ -34,6 +52,13 @@ class OrganizationSerializer(serializers.Serializer):
                 "name": instance.name,
                 "slug": instance.slug,
                 "plan": instance.plan,
+                "description": instance.description,
+                "industry": instance.industry,
+                "website": instance.website,
+                "phone": instance.phone,
+                "address": instance.address,
+                "business_context": instance.business_context or {},
+                "logo_url": instance.logo_url,
                 "created_at": instance.created_at,
                 "updated_at": instance.updated_at,
             }

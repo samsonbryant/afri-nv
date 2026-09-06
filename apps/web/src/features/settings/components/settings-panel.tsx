@@ -56,7 +56,7 @@ export function SettingsPanel() {
     <div>
       <PageHeader
         title="Settings"
-        description="Manage your profile, password, appearance, and notifications."
+        description="Manage your profile, business details, password, appearance, and notifications."
       />
 
       <div className="mx-auto max-w-2xl space-y-8">
@@ -286,7 +286,144 @@ export function SettingsPanel() {
             </div>
           </div>
         </section>
+
+        {organization ? <BusinessProfileSection organizationId={organization.id} /> : null}
       </div>
     </div>
+  );
+}
+
+function BusinessProfileSection({ organizationId }: { organizationId: string }) {
+  const setOrganization = useAuthStore((state) => state.setOrganization);
+  const organization = useAuthStore((state) => state.organization);
+  const logoRef = useRef<HTMLInputElement>(null);
+  const [description, setDescription] = useState(organization?.description ?? "");
+  const [industry, setIndustry] = useState(organization?.industry ?? "");
+  const [website, setWebsite] = useState(organization?.website ?? "");
+  const [phone, setPhone] = useState(organization?.phone ?? "");
+  const [address, setAddress] = useState(organization?.address ?? "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDescription(organization?.description ?? "");
+    setIndustry(organization?.industry ?? "");
+    setWebsite(organization?.website ?? "");
+    setPhone(organization?.phone ?? "");
+    setAddress(organization?.address ?? "");
+  }, [organization]);
+
+  return (
+    <section className="border-border bg-card space-y-4 rounded-xl border p-6">
+      <div>
+        <h2 className="font-display text-lg font-semibold">Business profile</h2>
+        <p className="text-muted-foreground text-sm">
+          Upload logo and company details so AI agents, marketing, and automations run on your real
+          business context.
+        </p>
+      </div>
+      <Separator />
+      <div className="space-y-3">
+        <div className="space-y-2">
+          <Label htmlFor="biz-industry">Industry</Label>
+          <Input
+            id="biz-industry"
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            placeholder="Retail, SaaS, Healthcare…"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="biz-website">Website</Label>
+          <Input
+            id="biz-website"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            placeholder="https://"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="biz-phone">Phone</Label>
+          <Input id="biz-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="biz-address">Address</Label>
+          <Input id="biz-address" value={address} onChange={(e) => setAddress(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="biz-description">About the business</Label>
+          <textarea
+            id="biz-description"
+            className="border-input bg-background min-h-[100px] w-full rounded-md border px-3 py-2 text-sm"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Products, customers, tone of voice, goals…"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Logo</Label>
+          <input
+            ref={logoRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              const form = new FormData();
+              form.append("logo", file);
+              setSaving(true);
+              try {
+                const { updateOrganizationRequest } =
+                  await import("@/features/organizations/api/organizations-api");
+                const updated = await updateOrganizationRequest(organizationId, form);
+                setOrganization(updated);
+                toast.success("Logo uploaded");
+              } catch (error) {
+                toast.error(getErrorMessage(error));
+              } finally {
+                setSaving(false);
+                event.target.value = "";
+              }
+            }}
+          />
+          <Button type="button" variant="outline" onClick={() => logoRef.current?.click()}>
+            {saving ? "Uploading…" : "Upload logo"}
+          </Button>
+        </div>
+        <Button
+          type="button"
+          disabled={saving}
+          onClick={async () => {
+            setSaving(true);
+            try {
+              const { updateOrganizationRequest } =
+                await import("@/features/organizations/api/organizations-api");
+              const updated = await updateOrganizationRequest(organizationId, {
+                description,
+                industry,
+                website,
+                phone,
+                address,
+                business_context: {
+                  summary: description,
+                  industry,
+                  website,
+                  phone,
+                  address,
+                },
+              });
+              setOrganization(updated);
+              toast.success("Business profile saved");
+            } catch (error) {
+              toast.error(getErrorMessage(error));
+            } finally {
+              setSaving(false);
+            }
+          }}
+        >
+          {saving ? "Saving…" : "Save business profile"}
+        </Button>
+      </div>
+    </section>
   );
 }

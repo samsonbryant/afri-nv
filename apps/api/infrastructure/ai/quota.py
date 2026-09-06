@@ -1,4 +1,4 @@
-"""Free-tier AI request limits and upgrade prompts."""
+"""Free-tier / trial AI request limits and upgrade prompts."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ class FreeTierDecision:
     remaining: int
     upgrade_url: str
     max_tokens: int
+    on_trial: bool = False
 
 
 def free_ai_request_limit() -> int:
@@ -58,6 +59,25 @@ def is_free_plan(plan: str | None) -> bool:
     return (plan or "free").strip().lower() in FREE_PLAN_CODES
 
 
+def active_trial(organization_id: UUID | str | None) -> bool:
+    """True when the org has an active TRIALING subscription that has not ended."""
+    if not organization_id:
+        return False
+    from django.db.models import Q
+
+    from apps.billing.infrastructure.models import Subscription
+
+    now = timezone.now()
+    return (
+        Subscription.objects.filter(
+            organization_id=organization_id,
+            status=Subscription.Status.TRIALING,
+        )
+        .filter(Q(trial_end__isnull=True) | Q(trial_end__gt=now))
+        .exists()
+    )
+
+
 def count_ai_requests(organization_id: UUID | str, *, since: datetime | None = None) -> int:
     from apps.dashboard.infrastructure.models import AiUsageRecord
 
@@ -70,6 +90,7 @@ def count_ai_requests(organization_id: UUID | str, *, since: datetime | None = N
 def evaluate_free_tier(organization_id: UUID | str | None) -> FreeTierDecision:
     limit = free_ai_request_limit()
     url = upgrade_url()
+    paid_max = int(getattr(settings, "AI_MAX_TOKENS", 1024) or 1024)
     if not organization_id:
         return FreeTierDecision(
             is_free=True,
@@ -79,13 +100,27 @@ def evaluate_free_tier(organization_id: UUID | str | None) -> FreeTierDecision:
             remaining=limit,
             upgrade_url=url,
             max_tokens=free_ai_max_tokens(),
+            on_trial=False,
+        )
+
+    on_trial = active_trial(organization_id)
+    if on_trial:
+        # 15-day unlimited trial — no AI caps while TRIALING and trial_end is in the future.
+        return FreeTierDecision(
+            is_free=False,
+            allowed=True,
+            used=0,
+            limit=0,
+            remaining=0,
+            upgrade_url=url,
+            max_tokens=paid_max,
+            on_trial=True,
         )
 
     plan = organization_plan(organization_id)
     free = is_free_plan(plan)
     used = count_ai_requests(organization_id, since=_month_start()) if free else 0
     remaining = max(0, limit - used) if free else limit
-    paid_max = int(getattr(settings, "AI_MAX_TOKENS", 1024) or 1024)
     return FreeTierDecision(
         is_free=free,
         allowed=(not free) or used < limit,
@@ -94,6 +129,7 @@ def evaluate_free_tier(organization_id: UUID | str | None) -> FreeTierDecision:
         remaining=remaining,
         upgrade_url=url,
         max_tokens=free_ai_max_tokens() if free else paid_max,
+        on_trial=False,
     )
 
 
@@ -102,17 +138,15 @@ def upgrade_footer(*, remaining: int | None = None, blocked: bool = False) -> st
     if blocked:
         return (
             f"\n\n---\n"
-            f"**Free plan limit reached.** Upgrade to unlock full AI replies, workflows, and "
-            f"automations: [{url}]({url})"
+            f"**Free plan limit reached.** Start a 15-day unlimited trial with a card on file: "
+            f"[{url}]({url})"
         )
     left = (
         f" ({remaining} free AI request{'s' if remaining != 1 else ''} left this month)"
         if remaining is not None
         else ""
     )
-    return (
-        f"\n\n---\n*Free plan{left}. Upgrade for longer answers and unlimited AI:* [{url}]({url})"
-    )
+    return f"\n\n---\n*Free plan{left}. Start a 15-day unlimited trial (card required):* [{url}]({url})"
 
 
 def blocked_upgrade_reply(user_content: str = "") -> str:
@@ -121,7 +155,7 @@ def blocked_upgrade_reply(user_content: str = "") -> str:
     return (
         f"**Free plan limit reached.** You've used your free AI requests for this month."
         f"{asked}\n\n"
-        f"Upgrade to keep chatting with full Novixa AI:\n"
+        f"Start a **15-day unlimited trial** (add a card — we auto-charge when the trial ends):\n"
         f"{upgrade_url()}"
     )
 
@@ -131,7 +165,6 @@ def minimize_free_reply(text: str, *, remaining: int | None = None) -> str:
     cleaned = (text or "").strip()
     if len(cleaned) > 420:
         cleaned = cleaned[:400].rstrip() + "…"
-    # Prefer first paragraph for brevity
     parts = [p.strip() for p in cleaned.split("\n\n") if p.strip()]
     if len(parts) > 2:
         cleaned = "\n\n".join(parts[:2])

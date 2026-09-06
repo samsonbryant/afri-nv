@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from apps.billing.infrastructure.dependencies import get_billing_service
 from apps.billing.interfaces.serializers.serializers import (
+    AttachCardSerializer,
     CheckoutSerializer,
     CouponValidateSerializer,
     InvoiceSerializer,
@@ -66,6 +67,24 @@ class CheckoutView(APIView):
             data.get("coupon") or None,
         )
         return Response(result, status=status.HTTP_201_CREATED)
+
+
+class AttachCardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(request=AttachCardSerializer, tags=["billing"])
+    def post(self, request: Request) -> Response:
+        serializer = AttachCardSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        sub = get_billing_service().attach_card(
+            request.user.id,
+            data["organization_id"],
+            payment_method_ref=data["payment_method_ref"],
+            card_last4=data.get("card_last4") or "",
+            card_brand=data.get("card_brand") or "",
+        )
+        return Response(SubscriptionSerializer(sub).data)
 
 
 class PortalView(APIView):

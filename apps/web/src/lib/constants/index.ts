@@ -90,7 +90,7 @@ export const ROUTES = {
   invite: "/invite",
   dashboard: "/dashboard",
   workflows: "/workflows",
-  workflowBuilder: (id: string) => `/workflows/${id}`,
+  workflowBuilder: (id: string) => `/workflows/${id}/builder`,
   automations: "/automations",
   assistant: "/assistant",
   knowledge: "/knowledge",

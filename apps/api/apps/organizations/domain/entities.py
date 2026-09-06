@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
@@ -29,6 +29,13 @@ class OrganizationEntity:
     plan: str
     created_at: datetime
     updated_at: datetime
+    description: str = ""
+    industry: str = ""
+    website: str = ""
+    phone: str = ""
+    address: str = ""
+    business_context: dict = field(default_factory=dict)
+    logo_url: str | None = None
 
 
 @dataclass(slots=True)

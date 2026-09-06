@@ -10,7 +10,12 @@ from apps.marketing.interfaces.api.views import (
     AssetListCreateView,
     CampaignDetailView,
     CampaignListCreateView,
+    FacebookAdListCreateView,
+    FacebookAdMetricsView,
     GenerateView,
+    SocialConnectionDetailView,
+    SocialConnectionListCreateView,
+    SocialPostListCreateView,
 )
 
 app_name = "marketing"
@@ -30,4 +35,19 @@ urlpatterns = [
         CampaignDetailView.as_view(),
         name="campaign-detail",
     ),
+    path(
+        "social/connections/", SocialConnectionListCreateView.as_view(), name="social-connections"
+    ),
+    path(
+        "social/connections/<uuid:connection_id>/",
+        SocialConnectionDetailView.as_view(),
+        name="social-connection-detail",
+    ),
+    path("facebook/ads/", FacebookAdListCreateView.as_view(), name="facebook-ads"),
+    path(
+        "facebook/ads/<uuid:ad_id>/metrics/",
+        FacebookAdMetricsView.as_view(),
+        name="facebook-ad-metrics",
+    ),
+    path("social/posts/", SocialPostListCreateView.as_view(), name="social-posts"),
 ]

@@ -49,6 +49,13 @@ class Subscription(BaseModel):
     current_period_end = models.DateTimeField(null=True, blank=True)
     cancel_at_period_end = models.BooleanField(default=False)
     trial_end = models.DateTimeField(null=True, blank=True)
+    # Card on file for auto-debit when the trial ends (Dodo / card processor).
+    payment_method = models.CharField(max_length=32, blank=True, default="")  # card | mtn_momo | …
+    card_last4 = models.CharField(max_length=4, blank=True, default="")
+    card_brand = models.CharField(max_length=32, blank=True, default="")
+    payment_method_ref = models.CharField(max_length=128, blank=True, default="")
+    auto_charge = models.BooleanField(default=True)
+    last_charged_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "billing_subscription"
@@ -170,7 +177,7 @@ class PaymentRequest(BaseModel):
         max_length=32, choices=Status.choices, default=Status.PENDING, db_index=True
     )
     amount_cents = models.PositiveIntegerField()
-    currency = models.CharField(max_length=8, default="xaf")
+    currency = models.CharField(max_length=8, default="usd")
     reference = models.CharField(max_length=64, unique=True, db_index=True)
     payer_phone = models.CharField(max_length=32, blank=True, default="")
     payer_name = models.CharField(max_length=128, blank=True, default="")

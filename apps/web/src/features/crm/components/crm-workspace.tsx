@@ -82,12 +82,12 @@ function formatCurrency(amount: number, currency = "USD"): string {
 }
 
 const STAGE_COLORS: Record<PipelineStage, string> = {
-  lead: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  qualified: "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
+  prospecting: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  qualification: "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300",
   proposal: "bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-200",
   negotiation: "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-  won: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-  lost: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300",
+  closed_won: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+  closed_lost: "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300",
 };
 
 const ACTIVITY_TYPE_ICONS: Record<string, React.ElementType> = {
@@ -226,24 +226,27 @@ function CreateOpportunityDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const { mutate, isPending } = useCreateOpportunity();
+  const { data: companies = [] } = useCompanies();
   const [form, setForm] = useState({
     title: "",
-    stage: "lead" as PipelineStage,
+    stage: "prospecting" as PipelineStage,
     amount: "",
     currency: "USD",
+    company_id: "",
     close_date: "",
     description: "",
   });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.title.trim()) return;
+    if (!form.title.trim() || !form.company_id) return;
     mutate(
       {
         title: form.title,
         stage: form.stage,
         amount: parseFloat(form.amount) || 0,
         currency: form.currency,
+        company_id: form.company_id,
         close_date: form.close_date || undefined,
         description: form.description || undefined,
       },
@@ -252,9 +255,10 @@ function CreateOpportunityDialog({
           onOpenChange(false);
           setForm({
             title: "",
-            stage: "lead",
+            stage: "prospecting",
             amount: "",
             currency: "USD",
+            company_id: "",
             close_date: "",
             description: "",
           });
@@ -268,7 +272,7 @@ function CreateOpportunityDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New Opportunity</DialogTitle>
-          <DialogDescription>Add a deal to the pipeline.</DialogDescription>
+          <DialogDescription>Add a deal to the pipeline (USD).</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
@@ -280,6 +284,22 @@ function CreateOpportunityDialog({
               placeholder="Deal name"
               required
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="opp-company">Company *</Label>
+            <Select
+              id="opp-company"
+              value={form.company_id}
+              onChange={(e) => setForm((f) => ({ ...f, company_id: e.target.value }))}
+              required
+            >
+              <option value="">Select company</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                </option>
+              ))}
+            </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -332,7 +352,7 @@ function CreateOpportunityDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending || !form.title.trim()}>
+            <Button type="submit" disabled={isPending || !form.title.trim() || !form.company_id}>
               {isPending ? "Creating…" : "Create"}
             </Button>
           </DialogFooter>
@@ -1182,8 +1202,10 @@ function PipelineSummary() {
   const { data: pipeline } = usePipeline();
   if (!pipeline) return null;
 
-  const wonStage = pipeline.stages.find((s) => s.stage === "won");
-  const activeStages = pipeline.stages.filter((s) => s.stage !== "won" && s.stage !== "lost");
+  const wonStage = pipeline.stages.find((s) => s.stage === "closed_won");
+  const activeStages = pipeline.stages.filter(
+    (s) => s.stage !== "closed_won" && s.stage !== "closed_lost",
+  );
   const activeAmount = activeStages.reduce((sum, s) => sum + s.totalAmount, 0);
 
   return (

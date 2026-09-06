@@ -51,6 +51,11 @@ class OrganizationListCreateView(APIView):
                 name=data["name"],
                 slug=data["slug"],
                 plan=data.get("plan", "free"),
+                description=data.get("description", ""),
+                industry=data.get("industry", ""),
+                website=data.get("website", ""),
+                phone=data.get("phone", ""),
+                address=data.get("address", ""),
             ),
         )
         return Response(OrganizationSerializer(org).data, status=status.HTTP_201_CREATED)
@@ -71,9 +76,23 @@ class OrganizationDetailView(APIView):
         tags=["organizations"],
     )
     def patch(self, request: Request, org_id: UUID) -> Response:
+        service = get_organization_service()
+        if request.FILES.get("logo"):
+            org = service.update_logo(request.user.id, org_id, request.FILES["logo"])
+            # Also apply any accompanying text fields.
+            text = {k: v for k, v in request.data.items() if k != "logo"}
+            if text:
+                serializer = OrganizationUpdateSerializer(data=text, partial=True)
+                serializer.is_valid(raise_exception=True)
+                org = service.update(
+                    request.user.id,
+                    org_id,
+                    UpdateOrganizationDTO(**serializer.validated_data),
+                )
+            return Response(OrganizationSerializer(org).data)
+
         serializer = OrganizationUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        service = get_organization_service()
         org = service.update(
             request.user.id,
             org_id,

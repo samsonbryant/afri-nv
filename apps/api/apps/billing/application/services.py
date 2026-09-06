@@ -34,19 +34,22 @@ DEFAULT_PLANS = [
         "code": "starter",
         "name": "Starter",
         "amount_cents": 2900,
-        "features": {"seats": 5, "ai_tokens": 100000},
+        "trial_days": 15,
+        "features": {"seats": 5, "ai_tokens": -1, "unlimited_trial": True},
     },
     {
         "code": "pro",
         "name": "Pro",
         "amount_cents": 9900,
-        "features": {"seats": 25, "ai_tokens": 1000000},
+        "trial_days": 15,
+        "features": {"seats": 25, "ai_tokens": -1, "unlimited_trial": True},
     },
     {
         "code": "business",
         "name": "Business",
         "amount_cents": 29900,
-        "features": {"seats": 100, "ai_tokens": 5000000},
+        "trial_days": 15,
+        "features": {"seats": 100, "ai_tokens": -1, "unlimited_trial": True},
     },
 ]
 
@@ -69,11 +72,32 @@ class BillingService:
                     "amount_cents": item["amount_cents"],
                     "currency": "usd",
                     "interval": Plan.Interval.MONTH,
-                    "trial_days": 14,
+                    "trial_days": int(item.get("trial_days", 15)),
                     "features": item["features"],
                     "is_active": True,
                 },
             )
+        self._ensure_trial_charge_schedule()
+
+    @staticmethod
+    def _ensure_trial_charge_schedule() -> None:
+        """Register hourly auto-debit of expired trials (Celery Beat)."""
+        try:
+            from django_celery_beat.models import IntervalSchedule, PeriodicTask
+        except Exception:
+            return
+        schedule, _ = IntervalSchedule.objects.get_or_create(
+            every=1,
+            period=IntervalSchedule.HOURS,
+        )
+        PeriodicTask.objects.update_or_create(
+            name="charge-expired-trials",
+            defaults={
+                "interval": schedule,
+                "task": "infrastructure.charge_expired_trials",
+                "enabled": True,
+            },
+        )
 
     def list_plans(self) -> list[PlanDTO]:
         self.seed_plans()
@@ -109,20 +133,33 @@ class BillingService:
             coupon=coupon,
         )
         now = timezone.now()
+        trial_days = int(plan.trial_days or 15)
+        # Cancel prior open subscriptions for this org.
+        Subscription.objects.filter(organization_id=organization_id).exclude(
+            status=Subscription.Status.CANCELLED
+        ).update(status=Subscription.Status.CANCELLED)
         sub = Subscription.objects.create(
             organization_id=organization_id,
             plan=plan,
-            status=Subscription.Status.TRIALING if plan.trial_days else Subscription.Status.ACTIVE,
+            status=Subscription.Status.TRIALING if trial_days else Subscription.Status.ACTIVE,
             dodo_subscription_id=session.id,
             current_period_start=now,
             current_period_end=now + timedelta(days=30),
-            trial_end=now + timedelta(days=plan.trial_days) if plan.trial_days else None,
+            trial_end=now + timedelta(days=trial_days) if trial_days else None,
+            payment_method="card",
+            payment_method_ref=session.id,
+            auto_charge=True,
         )
+        Organization.objects.filter(pk=organization_id).update(plan=plan.code)
         return {
             "checkout_url": session.checkout_url,
             "session_id": session.id,
             "subscription_id": str(sub.id),
             "plan_code": plan.code,
+            "trial_days": trial_days,
+            "trial_end": sub.trial_end.isoformat() if sub.trial_end else None,
+            "card_required": True,
+            "auto_charge": True,
             "stub": self._dodo.is_stub,
         }
 
@@ -246,8 +283,7 @@ class BillingService:
         from django.conf import settings
 
         return {
-            "currency": getattr(settings, "MANUAL_PAYMENT_CURRENCY", "xaf"),
-            "usd_to_local_rate": getattr(settings, "MANUAL_PAYMENT_USD_TO_LOCAL_RATE", 600),
+            "currency": "usd",
             "providers": [
                 {
                     "id": PaymentRequest.Provider.MTN_MOMO,
@@ -264,9 +300,9 @@ class BillingService:
             ],
             "steps": [
                 "Choose a plan and payment method (MTN MoMo or Orange Money).",
-                "Send the exact amount to the merchant number shown, using the payment reference as the transfer note.",
+                "Send the exact USD plan amount to the merchant number shown, using the payment reference as the transfer note.",
                 "Submit your payer phone number and MoMo/Orange transaction ID.",
-                "A Novixa admin will verify the payment and activate your package.",
+                "A Novixa admin will verify the USD payment and activate your package.",
             ],
         }
 
@@ -291,12 +327,9 @@ class BillingService:
         if provider not in {p.value for p in PaymentRequest.Provider}:
             raise PaymentRequestInvalidError("Unsupported payment provider.")
 
-        from django.conf import settings
-
-        rate = int(getattr(settings, "MANUAL_PAYMENT_USD_TO_LOCAL_RATE", 600) or 600)
-        currency = getattr(settings, "MANUAL_PAYMENT_CURRENCY", "xaf")
-        # Plans are stored in USD cents; convert to local currency major units * 100.
-        local_amount_cents = round((plan.amount_cents / 100) * rate * 100)
+        # Plans and manual payments are USD-only (amount stored in USD cents).
+        currency = "usd"
+        amount_cents = int(plan.amount_cents)
         reference = f"NVX-{uuid4().hex[:8].upper()}"
 
         # Cancel older open requests for this org so only one is in flight.
@@ -315,7 +348,7 @@ class BillingService:
             plan=plan,
             provider=provider,
             status=status,
-            amount_cents=local_amount_cents,
+            amount_cents=amount_cents,
             currency=currency,
             reference=reference,
             payer_phone=payer_phone.strip(),
@@ -546,8 +579,107 @@ class BillingService:
             current_period_end=s.current_period_end,
             cancel_at_period_end=s.cancel_at_period_end,
             trial_end=s.trial_end,
+            payment_method=s.payment_method,
+            card_last4=s.card_last4,
+            card_brand=s.card_brand,
+            auto_charge=s.auto_charge,
             created_at=s.created_at,
         )
+
+    def attach_card(
+        self,
+        actor_id: UUID,
+        organization_id: UUID,
+        *,
+        payment_method_ref: str,
+        card_last4: str = "",
+        card_brand: str = "",
+    ) -> SubscriptionDTO:
+        """Attach a card on file so the trial can auto-debit when it ends."""
+        self._require_owner_or_admin(actor_id, organization_id)
+        sub = (
+            Subscription.objects.filter(organization_id=organization_id)
+            .exclude(status=Subscription.Status.CANCELLED)
+            .select_related("plan")
+            .order_by("-created_at")
+            .first()
+        )
+        if sub is None:
+            raise PlanNotFoundError("No active subscription to attach a card to.")
+        sub.payment_method = "card"
+        sub.payment_method_ref = payment_method_ref.strip()
+        sub.card_last4 = (card_last4 or "")[:4]
+        sub.card_brand = card_brand or ""
+        sub.auto_charge = True
+        sub.save(
+            update_fields=[
+                "payment_method",
+                "payment_method_ref",
+                "card_last4",
+                "card_brand",
+                "auto_charge",
+                "updated_at",
+            ]
+        )
+        return self._subscription_dto(sub)
+
+    def charge_expired_trials(self) -> dict:
+        """
+        Auto-debit cards for trials that ended.
+        Runs on a schedule; charges the selected plan amount in USD.
+        """
+        now = timezone.now()
+        due = (
+            Subscription.objects.filter(
+                status=Subscription.Status.TRIALING,
+                auto_charge=True,
+                trial_end__lte=now,
+            )
+            .exclude(payment_method_ref="")
+            .select_related("plan", "organization")
+        )
+        charged = 0
+        failed = 0
+        for sub in due:
+            try:
+                result = self._dodo.charge_off_session(
+                    organization_id=str(sub.organization_id),
+                    payment_method_ref=sub.payment_method_ref,
+                    amount_cents=sub.plan.amount_cents,
+                    currency=sub.plan.currency or "usd",
+                    description=f"Novixa {sub.plan.name} after trial",
+                )
+                Invoice.objects.create(
+                    organization_id=sub.organization_id,
+                    subscription=sub,
+                    number=f"INV-{uuid4().hex[:10].upper()}",
+                    amount_cents=sub.plan.amount_cents,
+                    tax_cents=0,
+                    status=Invoice.Status.PAID,
+                    hosted_url=str(result.get("receipt_url") or ""),
+                    issued_at=now,
+                    paid_at=now,
+                )
+                sub.status = Subscription.Status.ACTIVE
+                sub.last_charged_at = now
+                sub.current_period_start = now
+                sub.current_period_end = now + timedelta(days=30)
+                sub.save(
+                    update_fields=[
+                        "status",
+                        "last_charged_at",
+                        "current_period_start",
+                        "current_period_end",
+                        "updated_at",
+                    ]
+                )
+                Organization.objects.filter(pk=sub.organization_id).update(plan=sub.plan.code)
+                charged += 1
+            except Exception:
+                sub.status = Subscription.Status.PAST_DUE
+                sub.save(update_fields=["status", "updated_at"])
+                failed += 1
+        return {"charged": charged, "failed": failed, "checked_at": now.isoformat()}
 
     @staticmethod
     def _invoice_dto(i: Invoice) -> InvoiceDTO:

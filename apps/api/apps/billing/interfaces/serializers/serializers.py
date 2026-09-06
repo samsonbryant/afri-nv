@@ -27,12 +27,23 @@ class SubscriptionSerializer(serializers.Serializer):
     cancel_at_period_end = serializers.BooleanField()
     trial_end = serializers.DateTimeField(allow_null=True)
     created_at = serializers.DateTimeField()
+    payment_method = serializers.CharField(required=False, allow_blank=True)
+    card_last4 = serializers.CharField(required=False, allow_blank=True)
+    card_brand = serializers.CharField(required=False, allow_blank=True)
+    auto_charge = serializers.BooleanField(required=False)
 
 
 class CheckoutSerializer(serializers.Serializer):
     organization_id = serializers.UUIDField()
     plan_code = serializers.CharField()
     coupon = serializers.CharField(required=False, allow_blank=True)
+
+
+class AttachCardSerializer(serializers.Serializer):
+    organization_id = serializers.UUIDField()
+    payment_method_ref = serializers.CharField(max_length=255)
+    card_last4 = serializers.CharField(required=False, allow_blank=True, max_length=4, default="")
+    card_brand = serializers.CharField(required=False, allow_blank=True, max_length=32, default="")
 
 
 class PortalSerializer(serializers.Serializer):
