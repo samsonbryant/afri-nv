@@ -36,10 +36,20 @@ from apps.crm.interfaces.serializers.serializers import (
 
 
 def _require_org(request: Request) -> UUID:
-    org_id = request.query_params.get("organization_id")
+    org_id = request.query_params.get("organization_id") or request.data.get("organization_id")
     if not org_id:
         raise ValidationError("organization_id is required.")
-    return UUID(org_id)
+    try:
+        return UUID(str(org_id))
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("organization_id must be a valid UUID.") from exc
+
+
+def _with_org_from_query(request: Request) -> dict:
+    data = dict(request.data)
+    if "organization_id" not in data and request.query_params.get("organization_id"):
+        data["organization_id"] = request.query_params.get("organization_id")
+    return data
 
 
 class CompanyListCreateView(APIView):
@@ -52,11 +62,11 @@ class CompanyListCreateView(APIView):
 
     @extend_schema(request=CompanyWriteSerializer, tags=["crm"])
     def post(self, request: Request) -> Response:
-        serializer = CompanyWriteSerializer(data=request.data)
+        serializer = CompanyWriteSerializer(data=_with_org_from_query(request))
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        org_id = data.pop("organization_id")
-        item = get_crm_service().create_company(request.user.id, org_id, data)
+        payload = dict(serializer.validated_data)
+        org_id = payload.pop("organization_id")
+        item = get_crm_service().create_company(request.user.id, org_id, payload)
         return Response(CompanySerializer(item).data, status=status.HTTP_201_CREATED)
 
 
@@ -93,9 +103,9 @@ class ContactListCreateView(APIView):
 
     @extend_schema(request=ContactWriteSerializer, tags=["crm"])
     def post(self, request: Request) -> Response:
-        serializer = ContactWriteSerializer(data=request.data)
+        serializer = ContactWriteSerializer(data=_with_org_from_query(request))
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+        data = dict(serializer.validated_data)
         org_id = data.pop("organization_id")
         item = get_crm_service().create_contact(request.user.id, org_id, data)
         return Response(ContactSerializer(item).data, status=status.HTTP_201_CREATED)
@@ -135,9 +145,9 @@ class LeadListCreateView(APIView):
 
     @extend_schema(request=LeadWriteSerializer, tags=["crm"])
     def post(self, request: Request) -> Response:
-        serializer = LeadWriteSerializer(data=request.data)
+        serializer = LeadWriteSerializer(data=_with_org_from_query(request))
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+        data = dict(serializer.validated_data)
         org_id = data.pop("organization_id")
         item = get_crm_service().create_lead(request.user.id, org_id, data)
         return Response(LeadSerializer(item).data, status=status.HTTP_201_CREATED)
@@ -182,9 +192,9 @@ class OpportunityListCreateView(APIView):
 
     @extend_schema(request=OpportunityWriteSerializer, tags=["crm"])
     def post(self, request: Request) -> Response:
-        serializer = OpportunityWriteSerializer(data=request.data)
+        serializer = OpportunityWriteSerializer(data=_with_org_from_query(request))
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+        data = dict(serializer.validated_data)
         org_id = data.pop("organization_id")
         item = get_crm_service().create_opportunity(request.user.id, org_id, data)
         return Response(OpportunitySerializer(item).data, status=status.HTTP_201_CREATED)

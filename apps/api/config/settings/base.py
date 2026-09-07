@@ -391,3 +391,7 @@ DODO_WEBHOOK_SECRET = env("DODO_WEBHOOK_SECRET", default="")
 META_GRAPH_ACCESS_TOKEN = env("META_GRAPH_ACCESS_TOKEN", default="")
 META_WHATSAPP_PHONE_NUMBER_ID = env("META_WHATSAPP_PHONE_NUMBER_ID", default="")
 META_WHATSAPP_DEFAULT_TO = env("META_WHATSAPP_DEFAULT_TO", default="")
+
+# Process knowledge uploads in-request unless a Celery worker is always running.
+KNOWLEDGE_PROCESS_INLINE = env.bool("KNOWLEDGE_PROCESS_INLINE", default=True)
+REPORTS_PROCESS_INLINE = env.bool("REPORTS_PROCESS_INLINE", default=True)

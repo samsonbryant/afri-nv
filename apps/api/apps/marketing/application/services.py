@@ -7,7 +7,11 @@ from uuid import UUID, uuid4
 from django.utils import timezone
 
 from apps.marketing.application.dto import AssetDTO, CampaignDTO
-from apps.marketing.domain.exceptions import AssetNotFoundError, CampaignNotFoundError
+from apps.marketing.domain.exceptions import (
+    AssetNotFoundError,
+    CampaignNotFoundError,
+    SocialConnectionNotFoundError,
+)
 from apps.marketing.infrastructure.models import (
     Campaign,
     FacebookAdCampaign,
@@ -243,7 +247,10 @@ class MarketingService:
         return result
 
     def disconnect_social(self, actor_id: UUID, connection_id: UUID) -> None:
-        conn = SocialConnection.objects.get(pk=connection_id)
+        try:
+            conn = SocialConnection.objects.get(pk=connection_id)
+        except SocialConnection.DoesNotExist as exc:
+            raise SocialConnectionNotFoundError() from exc
         self._require_member(actor_id, conn.organization_id)
         conn.status = SocialConnection.Status.DISCONNECTED
         conn.access_token = ""

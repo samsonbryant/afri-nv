@@ -96,6 +96,18 @@ class KnowledgeService:
     def delete_document(self, actor_id: UUID, document_id: UUID) -> None:
         doc = self._get_document(document_id)
         self._require_member(actor_id, doc.organization_id)
+        # Clear storage first so missing/misconfigured media does not 500 the API.
+        if doc.file:
+            try:
+                doc.file.delete(save=False)
+            except Exception:
+                pass
+            doc.file = None
+            try:
+                doc.save(update_fields=["file", "updated_at"])
+            except Exception:
+                pass
+        KnowledgeChunk.objects.filter(document_id=doc.id).delete()
         doc.delete()
 
     def reprocess_document(self, actor_id: UUID, document_id: UUID) -> KnowledgeDocumentDTO:
@@ -132,7 +144,10 @@ class KnowledgeService:
         from infrastructure.celery.tasks import process_knowledge_document
 
         doc_id = str(document_id)
-        if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
+        # Inline when eager, or when no dedicated worker is configured (typical small deploys).
+        if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False) or getattr(
+            settings, "KNOWLEDGE_PROCESS_INLINE", True
+        ):
             self.process_document(doc_id)
             return
 
@@ -323,7 +338,7 @@ class KnowledgeService:
             status=d.status,
             page_count=d.page_count,
             chunk_count=d.chunk_count,
-            error_message=d.error_message,
+            error_message=d.error_message or "",
             metadata=d.metadata or {},
             created_by_id=d.created_by_id,
             created_at=d.created_at,

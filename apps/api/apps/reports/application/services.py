@@ -121,7 +121,9 @@ class ReportService:
         from infrastructure.celery.tasks import process_report_generation
 
         rid = str(report_id)
-        if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False):
+        if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False) or getattr(
+            settings, "REPORTS_PROCESS_INLINE", True
+        ):
             self.process_report(rid)
             return
 

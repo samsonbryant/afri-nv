@@ -482,9 +482,10 @@ export async function createCompany(
   payload: CreateCompanyPayload,
   organizationId?: string | null,
 ): Promise<Company> {
+  if (!organizationId) throw new Error("organization_id is required");
   const raw = await api.post<Record<string, unknown>>(
     withOrg(API_ENDPOINTS.crm.companies, organizationId),
-    payload,
+    { ...payload, organization_id: organizationId },
   );
   return mapCompany(raw);
 }
@@ -505,9 +506,10 @@ export async function createContact(
   payload: CreateContactPayload,
   organizationId?: string | null,
 ): Promise<Contact> {
+  if (!organizationId) throw new Error("organization_id is required");
   const raw = await api.post<Record<string, unknown>>(
     withOrg(API_ENDPOINTS.crm.contacts, organizationId),
-    payload,
+    { ...payload, organization_id: organizationId },
   );
   return mapContact(raw);
 }
@@ -528,9 +530,10 @@ export async function createLead(
   payload: CreateLeadPayload,
   organizationId?: string | null,
 ): Promise<Lead> {
+  if (!organizationId) throw new Error("organization_id is required");
   const raw = await api.post<Record<string, unknown>>(
     withOrg(API_ENDPOINTS.crm.leads, organizationId),
-    payload,
+    { ...payload, organization_id: organizationId },
   );
   return mapLead(raw);
 }

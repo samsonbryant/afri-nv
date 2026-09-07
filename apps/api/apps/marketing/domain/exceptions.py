@@ -13,3 +13,8 @@ class AssetNotFoundError(NotFoundError):
 class CampaignNotFoundError(NotFoundError):
     default_message = "Campaign not found."
     code = "campaign_not_found"
+
+
+class SocialConnectionNotFoundError(NotFoundError):
+    default_message = "Social connection not found."
+    code = "social_connection_not_found"

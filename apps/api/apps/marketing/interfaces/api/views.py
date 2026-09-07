@@ -25,10 +25,13 @@ from apps.marketing.interfaces.serializers.serializers import (
 
 
 def _org(request: Request) -> UUID:
-    org_id = request.query_params.get("organization_id")
+    org_id = request.query_params.get("organization_id") or request.data.get("organization_id")
     if not org_id:
         raise ValidationError("organization_id is required.")
-    return UUID(org_id)
+    try:
+        return UUID(str(org_id))
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("organization_id must be a valid UUID.") from exc
 
 
 class AssetListCreateView(APIView):
