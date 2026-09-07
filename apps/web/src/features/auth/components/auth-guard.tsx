@@ -1,19 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { fetchCurrentUser } from "@/features/auth/api/auth-api";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
-import {
-  createOrganizationRequest,
-  fetchOrganizations,
-  normalizeOrganization,
-} from "@/features/organizations/api/organizations-api";
+import { fetchBootstrapState } from "@/features/organizations/api/organizations-api";
 import { useOrganizationsStore } from "@/features/organizations/stores/organizations-store";
-import { unwrapList } from "@/lib/api/org";
 import { ROUTES } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Organization } from "@/types/api";
 
 type AuthGuardProps = {
   children: React.ReactNode;
@@ -44,7 +38,9 @@ function useAuthHydrated(): boolean {
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const hydrated = useAuthHydrated();
+  const [bootstrapReady, setBootstrapReady] = useState(false);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const accessToken = useAuthStore((state) => state.accessToken);
   const user = useAuthStore((state) => state.user);
@@ -65,35 +61,38 @@ export function AuthGuard({ children }: AuthGuardProps) {
   useEffect(() => {
     if (!hydrated || !hasValidSession) return;
     let cancelled = false;
+    setBootstrapReady(false);
 
     async function syncProfileAndWorkspace() {
       try {
         const profile = await fetchCurrentUser();
         if (!cancelled) setUser(profile);
+        const storedId = useOrganizationsStore.getState().activeOrganizationId;
+        const state = await fetchBootstrapState(storedId);
+        if (!cancelled && state.organization) {
+          setOrganization(state.organization);
+          setActiveOrganizationId(state.organization.id);
 
-        const payload = await fetchOrganizations();
-        const listed = unwrapList(
-          payload as unknown as Organization[] | { results?: Organization[] },
-        ).map((item) => normalizeOrganization(item as unknown as Record<string, unknown>));
-        let first = listed[0] ?? null;
-        if (!first) {
-          const name =
-            profile.fullName && profile.fullName !== "User"
-              ? `${profile.fullName}'s Workspace`
-              : "Personal Workspace";
-          first = await createOrganizationRequest({
-            name,
-            slug: `workspace-${Date.now()}`,
-          });
-        }
-        if (!cancelled && first) {
-          setOrganization(first);
-          const storedId = useOrganizationsStore.getState().activeOrganizationId;
-          const stillValid = listed.some((org) => org.id === storedId);
-          setActiveOrganizationId(stillValid && storedId ? storedId : first.id);
+          const isStaff = Boolean(profile.isStaff || profile.isSuperuser);
+          const allowsTrialSetup =
+            pathname === ROUTES.onboarding ||
+            pathname === ROUTES.billing ||
+            pathname.startsWith("/billing/checkout/");
+          if (!isStaff && state.nextStep !== "dashboard" && !allowsTrialSetup) {
+            router.replace(
+              `${ROUTES.onboarding}?step=${state.nextStep === "trial" ? "trial" : "profile"}`,
+            );
+            return;
+          }
+          if (!isStaff && state.nextStep === "dashboard" && pathname === ROUTES.onboarding) {
+            router.replace(ROUTES.dashboard);
+            return;
+          }
         }
       } catch {
         // Keep persisted session; API failures are handled by the client refresh path.
+      } finally {
+        if (!cancelled) setBootstrapReady(true);
       }
     }
 
@@ -101,9 +100,18 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, hasValidSession, setUser, setOrganization, setActiveOrganizationId, user?.id]);
+  }, [
+    hydrated,
+    hasValidSession,
+    pathname,
+    router,
+    setUser,
+    setOrganization,
+    setActiveOrganizationId,
+    user?.id,
+  ]);
 
-  if (!hydrated) {
+  if (!hydrated || (hasValidSession && !bootstrapReady)) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
         <div className="w-full max-w-sm space-y-3">

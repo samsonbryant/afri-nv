@@ -23,6 +23,7 @@ from apps.billing.infrastructure.models import (
     Subscription,
     UsageRecord,
 )
+from apps.core.domain.exceptions import ValidationError
 from apps.organizations.domain.entities import MembershipRole
 from apps.organizations.domain.exceptions import InsufficientRoleError, NotOrganizationMemberError
 from apps.organizations.domain.repositories import AbstractMembershipRepository
@@ -125,12 +126,17 @@ class BillingService:
             raise PlanNotFoundError() from exc
         if coupon:
             self.validate_coupon(coupon)
+        from apps.accounts.infrastructure.models import User
+
+        actor = User.objects.filter(pk=actor_id).first()
         session = self._dodo.create_checkout(
             organization_id=str(organization_id),
             plan_code=plan.code,
             amount_cents=plan.amount_cents,
             currency=plan.currency,
             coupon=coupon,
+            customer_email=actor.email if actor else "",
+            customer_name=actor.get_full_name() if actor else "",
         )
         now = timezone.now()
         trial_days = int(plan.trial_days or 15)
@@ -138,19 +144,29 @@ class BillingService:
         Subscription.objects.filter(organization_id=organization_id).exclude(
             status=Subscription.Status.CANCELLED
         ).update(status=Subscription.Status.CANCELLED)
+        checkout_confirmed = self._dodo.is_stub
         sub = Subscription.objects.create(
             organization_id=organization_id,
             plan=plan,
-            status=Subscription.Status.TRIALING if trial_days else Subscription.Status.ACTIVE,
+            status=(
+                Subscription.Status.TRIALING
+                if checkout_confirmed and trial_days
+                else (
+                    Subscription.Status.ACTIVE
+                    if checkout_confirmed
+                    else Subscription.Status.PAST_DUE
+                )
+            ),
             dodo_subscription_id=session.id,
             current_period_start=now,
             current_period_end=now + timedelta(days=30),
             trial_end=now + timedelta(days=trial_days) if trial_days else None,
-            payment_method="card",
-            payment_method_ref=session.id,
-            auto_charge=True,
+            payment_method="card" if checkout_confirmed else "",
+            payment_method_ref=session.id if checkout_confirmed else "",
+            auto_charge=checkout_confirmed,
         )
-        Organization.objects.filter(pk=organization_id).update(plan=plan.code)
+        if checkout_confirmed:
+            Organization.objects.filter(pk=organization_id).update(plan=plan.code)
         return {
             "checkout_url": session.checkout_url,
             "session_id": session.id,
@@ -236,11 +252,19 @@ class BillingService:
             for r in records
         ]
 
-    def handle_dodo_webhook(self, payload: dict, signature: str | None) -> dict:
+    def handle_dodo_webhook(
+        self,
+        payload: dict,
+        signature: str | None,
+        *,
+        raw_payload: bytes | None = None,
+        webhook_id: str | None = None,
+        webhook_timestamp: str | None = None,
+    ) -> dict:
         import json
 
-        raw = json.dumps(payload).encode("utf-8")
-        if not self._dodo.verify_webhook_signature(raw, signature):
+        raw = raw_payload or json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        if not self._dodo.verify_webhook_signature(raw, signature, webhook_id, webhook_timestamp):
             from apps.core.domain.exceptions import PermissionDeniedError
 
             raise PermissionDeniedError("Invalid webhook signature.")
@@ -250,19 +274,61 @@ class BillingService:
             payload=payload,
         )
         data = payload.get("data") or payload
-        org_id = data.get("organization_id")
+        metadata = data.get("metadata") or {}
+        org_id = data.get("organization_id") or metadata.get("organization_id")
         sub_id = data.get("dodo_subscription_id") or data.get("subscription_id")
-        if org_id and sub_id:
+        if org_id:
             sub = (
-                Subscription.objects.filter(organization_id=org_id, dodo_subscription_id=sub_id)
+                Subscription.objects.filter(organization_id=org_id)
                 .select_related("plan")
+                .order_by("-created_at")
                 .first()
             )
             if sub:
                 status = data.get("status")
+                event_type = payload.get("type") or payload.get("event_type") or ""
+                if event_type in {"payment.succeeded", "subscription.active"}:
+                    status = (
+                        Subscription.Status.TRIALING
+                        if sub.trial_end and sub.trial_end > timezone.now()
+                        else Subscription.Status.ACTIVE
+                    )
+                elif event_type in {
+                    "payment.failed",
+                    "subscription.failed",
+                    "subscription.on_hold",
+                }:
+                    status = Subscription.Status.PAST_DUE
+                elif event_type in {"subscription.cancelled", "subscription.canceled"}:
+                    status = Subscription.Status.CANCELLED
                 if status in {s.value for s in Subscription.Status}:
                     sub.status = status
-                    sub.save(update_fields=["status", "updated_at"])
+                if status in {Subscription.Status.TRIALING, Subscription.Status.ACTIVE}:
+                    payment_ref = (
+                        data.get("payment_id")
+                        or sub_id
+                        or data.get("customer_id")
+                        or sub.dodo_subscription_id
+                    )
+                    sub.dodo_subscription_id = sub_id or sub.dodo_subscription_id
+                    sub.payment_method = "card"
+                    sub.payment_method_ref = str(payment_ref)
+                    sub.card_last4 = str(data.get("card_last4") or "")[-4:]
+                    sub.card_brand = str(data.get("card_brand") or "")
+                    sub.auto_charge = True
+                    Organization.objects.filter(pk=org_id).update(plan=sub.plan.code)
+                sub.save(
+                    update_fields=[
+                        "status",
+                        "dodo_subscription_id",
+                        "payment_method",
+                        "payment_method_ref",
+                        "card_last4",
+                        "card_brand",
+                        "auto_charge",
+                        "updated_at",
+                    ]
+                )
                 if data.get("create_invoice"):
                     Invoice.objects.create(
                         organization_id=sub.organization_id,
@@ -598,6 +664,10 @@ class BillingService:
     ) -> SubscriptionDTO:
         """Attach a card on file so the trial can auto-debit when it ends."""
         self._require_owner_or_admin(actor_id, organization_id)
+        if not self._dodo.is_stub:
+            raise ValidationError(
+                "Cards must be confirmed by Dodo Payments checkout in production."
+            )
         self.seed_plans()
         sub = (
             Subscription.objects.filter(organization_id=organization_id)
@@ -650,6 +720,13 @@ class BillingService:
         Auto-debit cards for trials that ended.
         Runs on a schedule; charges the selected plan amount in USD.
         """
+        if not self._dodo.is_stub:
+            return {
+                "processed": 0,
+                "charged": 0,
+                "failed": 0,
+                "delegated_to_provider": True,
+            }
         now = timezone.now()
         due = (
             Subscription.objects.filter(

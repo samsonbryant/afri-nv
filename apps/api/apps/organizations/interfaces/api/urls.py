@@ -5,8 +5,10 @@ from __future__ import annotations
 from django.urls import path
 
 from apps.organizations.interfaces.api.views import (
+    CompleteOnboardingView,
     MembershipDetailView,
     MembershipListCreateView,
+    OrganizationBootstrapView,
     OrganizationDetailView,
     OrganizationListCreateView,
 )
@@ -14,8 +16,14 @@ from apps.organizations.interfaces.api.views import (
 app_name = "organizations"
 
 urlpatterns = [
+    path("bootstrap/", OrganizationBootstrapView.as_view(), name="bootstrap"),
     path("", OrganizationListCreateView.as_view(), name="list-create"),
     path("<uuid:org_id>/", OrganizationDetailView.as_view(), name="detail"),
+    path(
+        "<uuid:org_id>/complete-onboarding/",
+        CompleteOnboardingView.as_view(),
+        name="complete-onboarding",
+    ),
     path(
         "<uuid:org_id>/memberships/",
         MembershipListCreateView.as_view(),

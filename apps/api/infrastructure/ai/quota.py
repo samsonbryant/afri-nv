@@ -78,6 +78,17 @@ def active_trial(organization_id: UUID | str | None) -> bool:
     )
 
 
+def active_paid_subscription(organization_id: UUID | str | None) -> bool:
+    if not organization_id:
+        return False
+    from apps.billing.infrastructure.models import Subscription
+
+    return Subscription.objects.filter(
+        organization_id=organization_id,
+        status=Subscription.Status.ACTIVE,
+    ).exists()
+
+
 def count_ai_requests(organization_id: UUID | str, *, since: datetime | None = None) -> int:
     from apps.dashboard.infrastructure.models import AiUsageRecord
 
@@ -117,8 +128,7 @@ def evaluate_free_tier(organization_id: UUID | str | None) -> FreeTierDecision:
             on_trial=True,
         )
 
-    plan = organization_plan(organization_id)
-    free = is_free_plan(plan)
+    free = not active_paid_subscription(organization_id)
     used = count_ai_requests(organization_id, since=_month_start()) if free else 0
     remaining = max(0, limit - used) if free else limit
     return FreeTierDecision(

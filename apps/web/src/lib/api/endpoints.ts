@@ -23,10 +23,12 @@ export const API_ENDPOINTS = {
     socialGithub: "/auth/social/github/",
   },
   organizations: {
+    bootstrap: "/organizations/bootstrap/",
     list: "/organizations/",
     detail: (id: string) => `/organizations/${id}/`,
     create: "/organizations/",
     update: (id: string) => `/organizations/${id}/`,
+    completeOnboarding: (id: string) => `/organizations/${id}/complete-onboarding/`,
     delete: (id: string) => `/organizations/${id}/`,
     members: (id: string) => `/organizations/${id}/memberships/`,
     memberships: (id: string) => `/organizations/${id}/memberships/`,

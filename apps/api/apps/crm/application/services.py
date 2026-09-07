@@ -38,6 +38,7 @@ from apps.crm.infrastructure.models import (
 from apps.organizations.domain.exceptions import NotOrganizationMemberError
 from apps.organizations.domain.repositories import AbstractMembershipRepository
 from infrastructure.ai.llm import complete
+from infrastructure.ai.organization_context import with_organization_context
 
 
 class CrmService:
@@ -299,7 +300,11 @@ class CrmService:
             f"Write a concise professional follow-up email/note for CRM activity:\n"
             f"Type: {activity.type}\nSubject: {activity.subject}\n"
             f"Related: {activity.related_type} {activity.related_id}",
-            system="You are a CRM assistant. Write brief, actionable follow-ups.",
+            system=with_organization_context(
+                "You are a CRM assistant. Write brief, actionable follow-ups.",
+                activity.organization_id,
+            ),
+            organization_id=str(activity.organization_id),
         )
         note = CrmNote.objects.create(
             organization_id=activity.organization_id,

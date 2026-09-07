@@ -36,6 +36,7 @@ class OrganizationEntity:
     address: str = ""
     business_context: dict = field(default_factory=dict)
     logo_url: str | None = None
+    onboarding_completed_at: datetime | None = None
 
 
 @dataclass(slots=True)

@@ -12,10 +12,8 @@ from apps.organizations.infrastructure.dependencies import get_organization_serv
 @pytest.mark.django_db
 @pytest.mark.unit
 def test_billing_checkout() -> None:
-    user = (
-        get_auth_service()
-        .register(RegisterUserDTO(email="billing@novixa.ai", password="securepass123"))
-        .user
+    user, _ = get_auth_service().register(
+        RegisterUserDTO(email="billing@novixa.ai", password="securepass123")
     )
     org = get_organization_service().create(
         user.id, CreateOrganizationDTO(name="Bill Org", slug="bill-org")

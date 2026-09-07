@@ -15,7 +15,7 @@ from apps.reports.infrastructure.dependencies import get_report_service
 @pytest.mark.unit
 def test_report_generate() -> None:
     auth = get_auth_service()
-    user = auth.register(RegisterUserDTO(email="reports@novixa.ai", password="securepass123")).user
+    user, _ = auth.register(RegisterUserDTO(email="reports@novixa.ai", password="securepass123"))
     org = get_organization_service().create(
         user.id, CreateOrganizationDTO(name="Reports Org", slug="reports-org")
     )

@@ -22,6 +22,7 @@ from apps.marketing.infrastructure.models import (
 from apps.organizations.domain.exceptions import NotOrganizationMemberError
 from apps.organizations.domain.repositories import AbstractMembershipRepository
 from infrastructure.ai.llm import complete
+from infrastructure.ai.organization_context import with_organization_context
 
 _TEMPLATES = {
     "facebook": "Write a Facebook post about {prompt}. Tone: {tone}. Product: {product}.",
@@ -102,7 +103,10 @@ class MarketingService:
                 product=product_name or "the product",
                 type=asset_type,
             ),
-            system="You are a senior marketing copywriter for Novixa.",
+            system=with_organization_context(
+                "You are a senior marketing copywriter for Novixa.", organization_id
+            ),
+            organization_id=str(organization_id),
         )
         title = f"{asset_type.replace('_', ' ').title()}: {prompt[:80]}"
         asset = MarketingAsset.objects.create(
@@ -121,7 +125,11 @@ class MarketingService:
         self._require_member(actor_id, asset.organization_id)
         improved = complete(
             f"Improve and rewrite this {asset.type} marketing content:\n\n{asset.content}",
-            system="You are a senior marketing editor. Keep the intent, improve clarity and conversion.",
+            system=with_organization_context(
+                "You are a senior marketing editor. Keep the intent, improve clarity and conversion.",
+                asset.organization_id,
+            ),
+            organization_id=str(asset.organization_id),
         )
         asset.content = improved
         meta = dict(asset.metadata or {})
@@ -269,7 +277,10 @@ class MarketingService:
         caption = data.get("caption") or complete(
             f"Write a high-converting Facebook ad caption for: {prompt}. "
             f"Include a clear CTA. Target: {data.get('target_audience') or {}}",
-            system="You write Facebook ads. Be punchy, compliant, and conversion-focused.",
+            system=with_organization_context(
+                "You write Facebook ads. Be punchy, compliant, and conversion-focused.",
+                organization_id,
+            ),
             organization_id=str(organization_id),
         )
         ad = FacebookAdCampaign.objects.create(

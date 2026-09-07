@@ -58,6 +58,7 @@ def _topo_order(nodes: list[dict[str, Any]], edges: list[dict[str, Any]]) -> lis
 
 def _run_ai(prompt: str, context: dict[str, Any], organization_id: str | None = None) -> str:
     from infrastructure.ai.llm import complete
+    from infrastructure.ai.organization_context import with_organization_context
     from infrastructure.ai.quota import record_ai_usage
 
     payload_preview = json.dumps(context, default=str)[:1500]
@@ -65,9 +66,12 @@ def _run_ai(prompt: str, context: dict[str, Any], organization_id: str | None = 
         f"{prompt.strip() or 'Summarize the workflow input and suggest next steps.'}\n\n"
         f"Context JSON:\n{payload_preview}"
     )
+    system = "You are Novixa workflow AI. Reply in concise markdown."
+    if organization_id:
+        system = with_organization_context(system, organization_id)
     text = complete(
         full_prompt,
-        system="You are Novixa workflow AI. Reply in concise markdown.",
+        system=system,
         temperature=0.4,
         organization_id=organization_id,
     )

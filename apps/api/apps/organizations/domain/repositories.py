@@ -5,6 +5,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from uuid import UUID
 
+from django.core.files.uploadedfile import UploadedFile
+
 from apps.organizations.domain.entities import MembershipEntity, OrganizationEntity
 
 
@@ -23,6 +25,9 @@ class AbstractOrganizationRepository(ABC):
 
     @abstractmethod
     def update(self, org: OrganizationEntity) -> OrganizationEntity: ...
+
+    @abstractmethod
+    def set_logo(self, org_id: UUID, file: UploadedFile) -> OrganizationEntity: ...
 
     @abstractmethod
     def delete(self, org_id: UUID) -> None: ...

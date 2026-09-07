@@ -12,10 +12,8 @@ from apps.organizations.infrastructure.dependencies import get_organization_serv
 @pytest.mark.django_db
 @pytest.mark.unit
 def test_agents_run() -> None:
-    user = (
-        get_auth_service()
-        .register(RegisterUserDTO(email="agents@novixa.ai", password="securepass123"))
-        .user
+    user, _ = get_auth_service().register(
+        RegisterUserDTO(email="agents@novixa.ai", password="securepass123")
     )
     org = get_organization_service().create(
         user.id, CreateOrganizationDTO(name="Agent Org", slug="agent-org")

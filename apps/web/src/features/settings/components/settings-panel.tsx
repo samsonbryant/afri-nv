@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,6 +18,7 @@ import {
 } from "@/features/auth/api/auth-api";
 import { SecuritySettings } from "@/features/auth/components/security-settings";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
+import { organizationKeys } from "@/features/organizations/hooks/use-organizations";
 import { useSettingsStore } from "@/features/settings/stores/settings-store";
 import { useMounted } from "@/hooks/use-mounted";
 import { getErrorMessage } from "@/lib/api/errors";
@@ -297,6 +299,7 @@ export function SettingsPanel() {
 }
 
 function BusinessProfileSection({ organizationId }: { organizationId: string }) {
+  const queryClient = useQueryClient();
   const setOrganization = useAuthStore((state) => state.setOrganization);
   const organization = useAuthStore((state) => state.organization);
   const logoRef = useRef<HTMLInputElement>(null);
@@ -322,6 +325,14 @@ function BusinessProfileSection({ organizationId }: { organizationId: string }) 
         <p className="text-muted-foreground text-sm">
           Upload logo and company details so AI agents, marketing, and automations run on your real
           business context.
+        </p>
+        <p className="mt-2 text-xs font-medium">
+          Profile status:{" "}
+          <span
+            className={organization?.onboardingCompleted ? "text-emerald-600" : "text-amber-600"}
+          >
+            {organization?.onboardingCompleted ? "Complete" : "Needs required details and logo"}
+          </span>
         </p>
       </div>
       <Separator />
@@ -364,6 +375,17 @@ function BusinessProfileSection({ organizationId }: { organizationId: string }) 
         </div>
         <div className="space-y-2">
           <Label>Logo</Label>
+          {organization?.logoUrl ? (
+            <div className="border-border flex items-center gap-3 rounded-lg border p-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={organization.logoUrl}
+                alt={`${organization.name} logo`}
+                className="h-14 w-14 rounded-md object-contain"
+              />
+              <span className="text-muted-foreground text-sm">Current organization logo</span>
+            </div>
+          ) : null}
           <input
             ref={logoRef}
             type="file"
@@ -380,6 +402,7 @@ function BusinessProfileSection({ organizationId }: { organizationId: string }) 
                   await import("@/features/organizations/api/organizations-api");
                 const updated = await updateOrganizationRequest(organizationId, form);
                 setOrganization(updated);
+                await queryClient.invalidateQueries({ queryKey: organizationKeys.lists() });
                 toast.success("Logo uploaded");
               } catch (error) {
                 toast.error(getErrorMessage(error));
@@ -408,6 +431,7 @@ function BusinessProfileSection({ organizationId }: { organizationId: string }) 
                 phone,
                 address,
                 business_context: {
+                  ...(organization?.businessContext ?? {}),
                   summary: description,
                   industry,
                   website,
@@ -416,6 +440,7 @@ function BusinessProfileSection({ organizationId }: { organizationId: string }) 
                 },
               });
               setOrganization(updated);
+              await queryClient.invalidateQueries({ queryKey: organizationKeys.lists() });
               toast.success("Business profile saved");
             } catch (error) {
               toast.error(getErrorMessage(error));

@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from django.utils import timezone
+from PIL import Image
+
+from apps.core.domain.exceptions import ValidationError
 from apps.organizations.application.dto import (
     AddMemberDTO,
     CreateOrganizationDTO,
@@ -55,16 +59,22 @@ class OrganizationService:
         )
         return self._org_dto(org)
 
-    def ensure_default(self, user_id: UUID, *, display_name: str = "") -> OrganizationDTO:
+    def ensure_default(
+        self, user_id: UUID, *, display_name: str = "", workspace_name: str = ""
+    ) -> OrganizationDTO:
         """Return the user's first org, creating a personal workspace if needed."""
         existing = self.list_for_user(user_id)
         if existing:
             return existing[0]
 
         base = (display_name or "Personal").strip() or "Personal"
-        name = f"{base}'s Workspace" if base.lower() != "personal" else "Personal Workspace"
+        name = (workspace_name or "").strip()
+        if not name:
+            name = f"{base}'s Workspace" if base.lower() != "personal" else "Personal Workspace"
+        slug_source = name if workspace_name else base
         slug_base = (
-            "".join(ch.lower() if ch.isalnum() else "-" for ch in base).strip("-") or "workspace"
+            "".join(ch.lower() if ch.isalnum() else "-" for ch in slug_source).strip("-")
+            or "workspace"
         )
         slug = f"{slug_base}-{str(user_id).split('-')[0]}"
         # Collision-safe slug attempts
@@ -111,23 +121,35 @@ class OrganizationService:
             org.address = data.address
         if data.business_context is not None:
             org.business_context = data.business_context
+        if data.onboarding_completed is True:
+            org.onboarding_completed_at = timezone.now()
+        elif data.onboarding_completed is False:
+            org.onboarding_completed_at = None
         return self._org_dto(self._orgs.update(org))
 
     def update_logo(self, actor_id: UUID, org_id: UUID, uploaded) -> OrganizationDTO:
         """Attach a business logo used by marketing and AI agents."""
         self._require_role(actor_id, org_id, _ADMIN_ROLES)
-        from apps.organizations.infrastructure.models import Organization
-
+        if int(getattr(uploaded, "size", 0) or 0) > 5 * 1024 * 1024:
+            raise ValidationError("Logo must be 5 MB or smaller.")
+        content_type = str(getattr(uploaded, "content_type", "") or "").lower()
+        if content_type not in {"image/png", "image/jpeg", "image/webp"}:
+            raise ValidationError("Logo must be a PNG, JPEG, or WebP image.")
         try:
-            orm = Organization.objects.get(pk=org_id)
-        except Organization.DoesNotExist as exc:
-            raise OrganizationNotFoundError() from exc
-        orm.logo = uploaded
-        orm.save(update_fields=["logo", "updated_at"])
-        org = self._orgs.get_by_id(org_id)
-        if org is None:
-            raise OrganizationNotFoundError()
-        return self._org_dto(org)
+            image = Image.open(uploaded)
+            width, height = image.size
+            if width < 32 or height < 32 or width > 4096 or height > 4096:
+                raise ValidationError("Logo dimensions must be between 32x32 and 4096x4096 pixels.")
+            image.verify()
+            uploaded.seek(0)
+        except ValidationError:
+            raise
+        except Exception as exc:
+            raise ValidationError("Logo is not a valid image.") from exc
+        try:
+            return self._org_dto(self._orgs.set_logo(org_id, uploaded))
+        except Exception as exc:
+            raise ValidationError("Logo could not be stored. Try again.") from exc
 
     def delete(self, actor_id: UUID, org_id: UUID) -> None:
         self._require_role(actor_id, org_id, {MembershipRole.OWNER})
@@ -190,6 +212,7 @@ class OrganizationService:
             address=org.address,
             business_context=org.business_context or {},
             logo_url=org.logo_url,
+            onboarding_completed_at=org.onboarding_completed_at,
         )
 
     @staticmethod

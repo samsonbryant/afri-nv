@@ -17,7 +17,7 @@ from apps.organizations.infrastructure.dependencies import get_organization_serv
 @pytest.mark.unit
 def test_upload_and_process_document() -> None:
     auth = get_auth_service()
-    user = auth.register(RegisterUserDTO(email="kb@novixa.ai", password="securepass123")).user
+    user, _ = auth.register(RegisterUserDTO(email="kb@novixa.ai", password="securepass123"))
     org = get_organization_service().create(
         user.id, CreateOrganizationDTO(name="KB Org", slug="kb-org")
     )

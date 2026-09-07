@@ -22,6 +22,7 @@ from apps.documents.infrastructure.models import DocumentJob, StudioDocument
 from apps.organizations.domain.exceptions import NotOrganizationMemberError
 from apps.organizations.domain.repositories import AbstractMembershipRepository
 from infrastructure.ai.llm import complete
+from infrastructure.ai.organization_context import with_organization_context
 
 logger = logging.getLogger("apps.documents")
 
@@ -142,6 +143,9 @@ class DocumentStudioService:
         params = job.params or {}
         job_type = job.job_type
 
+        def system(prompt: str) -> str:
+            return with_organization_context(prompt, doc.organization_id)
+
         if job_type == DocumentJob.JobType.ASK:
             prompt = (params.get("prompt") or params.get("question") or "").strip()
             if not prompt:
@@ -149,7 +153,7 @@ class DocumentStudioService:
             content = complete(
                 f"Document title: {doc.title}\n\nDocument content:\n{text[:12000]}\n\n"
                 f"User question / prompt:\n{prompt}",
-                system=(
+                system=system(
                     "You are Novixa Document AI. Answer using only the document when possible. "
                     "Be detailed, cite sections, and say when information is missing."
                 ),
@@ -160,14 +164,16 @@ class DocumentStudioService:
         if job_type == DocumentJob.JobType.SUMMARIZE:
             content = complete(
                 f"Summarize this document:\n\n{text[:8000]}",
-                system="You summarize business documents clearly.",
+                system=system("You summarize business documents clearly."),
+                organization_id=str(doc.organization_id),
             )
             return {"summary": content}
 
         if job_type == DocumentJob.JobType.ANALYZE:
             content = complete(
                 f"Analyze structure, key entities, and risks in:\n\n{text[:8000]}",
-                system="You are a document analyst.",
+                system=system("You are a document analyst."),
+                organization_id=str(doc.organization_id),
             )
             return {"analysis": content}
 
@@ -175,7 +181,8 @@ class DocumentStudioService:
             lang = params.get("target_lang", "en")
             content = complete(
                 f"Translate the following to {lang}:\n\n{text[:8000]}",
-                system="You are a professional translator. Preserve meaning.",
+                system=system("You are a professional translator. Preserve meaning."),
+                organization_id=str(doc.organization_id),
             )
             return {"target_lang": lang, "translation": content}
 
@@ -189,7 +196,8 @@ class DocumentStudioService:
                 f"Compare Document A and Document B.\n\n"
                 f"A ({doc.title}):\n{text[:4000]}\n\n"
                 f"B ({other.title}):\n{other_text[:4000]}",
-                system="Highlight similarities and differences.",
+                system=system("Highlight similarities and differences."),
+                organization_id=str(doc.organization_id),
             )
             return {
                 "other_document_id": str(other.id),
@@ -199,7 +207,8 @@ class DocumentStudioService:
         if job_type == DocumentJob.JobType.EXTRACT:
             content = complete(
                 f"Extract key fields, dates, amounts, and entities from:\n\n{text[:8000]}",
-                system="Return structured bullet points.",
+                system=system("Return structured bullet points."),
+                organization_id=str(doc.organization_id),
             )
             return {"extracted": content}
 

@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+[data-guide-active="true"] {
+  position: relative;
+  z-index: 85;
+  outline: 3px solid hsl(var(--primary));
+  outline-offset: 6px;
+  border-radius: 0.75rem;
+}
+
 @layer base {
   :root {
     /* Brand from novixa_logo.png: violet #9000F0 on ink #000818 */

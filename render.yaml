@@ -63,6 +63,10 @@ services:
         value: Novixa
       - key: MANUAL_PAYMENT_CURRENCY
         value: usd
+      - key: KNOWLEDGE_PROCESS_INLINE
+        value: "False"
+      - key: REPORTS_PROCESS_INLINE
+        value: "False"
       - fromGroup: novixa-secrets
 
   # Frontend is deployed on Vercel (apps/web), not Render.
@@ -134,3 +138,27 @@ envVarGroups:
         sync: false
       - key: SENTRY_ENVIRONMENT
         value: production
+      - key: USE_S3
+        value: "False"
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_STORAGE_BUCKET_NAME
+        sync: false
+      - key: AWS_S3_ENDPOINT_URL
+        sync: false
+      - key: AWS_S3_CUSTOM_DOMAIN
+        sync: false
+      - key: DODO_API_KEY
+        sync: false
+      - key: DODO_WEBHOOK_SECRET
+        sync: false
+      - key: DODO_ENVIRONMENT
+        value: live_mode
+      - key: DODO_PRODUCT_STARTER
+        sync: false
+      - key: DODO_PRODUCT_GROWTH
+        sync: false
+      - key: DODO_PRODUCT_SCALE
+        sync: false

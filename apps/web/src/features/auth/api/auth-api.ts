@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import { ApiError } from "@/lib/api/errors";
 import { unwrapList } from "@/lib/api/org";
 import { toSameOriginAssetUrl } from "@/lib/constants";
+import { normalizeOrganization } from "@/features/organizations/api/organizations-api";
 import type { AuthResponse, Organization, User } from "@/types/api";
 import type { LoginCredentials, RegisterCredentials } from "@/features/auth/types";
 
@@ -73,30 +74,11 @@ export function normalizeUser(raw: RawUser): User {
   };
 }
 
-export function normalizeOrganization(raw: Record<string, unknown>): Organization {
-  return {
-    id: String(raw.id ?? ""),
-    name: pickString(raw, "name") || "Organization",
-    slug: pickString(raw, "slug"),
-    role: (raw.role as Organization["role"]) || undefined,
-    createdAt: pickString(raw, "createdAt", "created_at") || new Date().toISOString(),
-  };
-}
-
 function splitFullName(fullName: string): { first_name: string; last_name: string } {
   const parts = fullName.trim().split(/\s+/);
   const first_name = parts[0] ?? "";
   const last_name = parts.slice(1).join(" ");
   return { first_name, last_name };
-}
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 100);
 }
 
 async function fetchFirstOrganization(accessToken: string): Promise<Organization | null> {
@@ -113,10 +95,7 @@ async function fetchFirstOrganization(accessToken: string): Promise<Organization
   }
 }
 
-async function buildAuthResponse(
-  raw: Record<string, unknown>,
-  options?: { organizationName?: string },
-): Promise<AuthResponse> {
+async function buildAuthResponse(raw: Record<string, unknown>): Promise<AuthResponse> {
   const tokensRaw = (raw.tokens ?? raw) as Record<string, unknown>;
   const access = pickString(tokensRaw, "access", "access_token");
   const refresh = pickString(tokensRaw, "refresh", "refresh_token");
@@ -135,42 +114,6 @@ async function buildAuthResponse(
     organization = normalizeOrganization(raw.organization as Record<string, unknown>);
   } else {
     organization = await fetchFirstOrganization(access);
-  }
-
-  if (!organization && options?.organizationName) {
-    try {
-      const created = await api.post<Record<string, unknown>>(
-        API_ENDPOINTS.organizations.create,
-        {
-          name: options.organizationName,
-          slug: slugify(options.organizationName) || `org-${Date.now()}`,
-        },
-        { token: access },
-      );
-      organization = normalizeOrganization(created);
-    } catch {
-      organization = null;
-    }
-  }
-
-  if (!organization) {
-    const fallbackName =
-      user.fullName && user.fullName !== "User"
-        ? `${user.fullName}'s Workspace`
-        : "Personal Workspace";
-    try {
-      const created = await api.post<Record<string, unknown>>(
-        API_ENDPOINTS.organizations.create,
-        {
-          name: fallbackName,
-          slug: slugify(fallbackName) || `workspace-${Date.now()}`,
-        },
-        { token: access },
-      );
-      organization = normalizeOrganization(created);
-    } catch {
-      organization = null;
-    }
   }
 
   return {
@@ -223,7 +166,7 @@ export async function registerRequest(credentials: RegisterCredentials): Promise
       full_name: credentials.fullName,
       organization_name: credentials.organizationName,
     });
-    return buildAuthResponse(raw, { organizationName: credentials.organizationName });
+    return buildAuthResponse(raw);
   } catch (error) {
     // Retry without org fields if backend rejects unknown keys.
     if (error instanceof ApiError && (error.status === 400 || error.status === 422)) {
@@ -233,7 +176,7 @@ export async function registerRequest(credentials: RegisterCredentials): Promise
         first_name,
         last_name,
       });
-      return buildAuthResponse(raw, { organizationName: credentials.organizationName });
+      return buildAuthResponse(raw);
     }
     throw error;
   }

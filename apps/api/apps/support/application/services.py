@@ -15,6 +15,7 @@ from apps.support.application.dto import (
 from apps.support.domain.exceptions import ChannelNotFoundError, TicketNotFoundError
 from apps.support.infrastructure.models import SupportChannel, Ticket, TicketMessage
 from infrastructure.ai.llm import complete
+from infrastructure.ai.organization_context import with_organization_context
 
 
 class SupportService:
@@ -156,7 +157,11 @@ class SupportService:
             f"Ticket: {ticket.subject}\nDescription: {ticket.description}\n\n"
             f"Conversation:\n{transcript or '(empty)'}\n\n"
             "Draft a helpful support reply.",
-            system="You are a professional customer support agent for Novixa.",
+            system=with_organization_context(
+                "You are a professional customer support agent for Novixa.",
+                ticket.organization_id,
+            ),
+            organization_id=str(ticket.organization_id),
         )
         message = None
         if post:

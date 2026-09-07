@@ -75,7 +75,7 @@ function handleTwoFactorRequired(error: unknown, router: ReturnType<typeof useRo
 
 function postAuthRoute(data: AuthResponse): string {
   if (data.user.isStaff || data.user.isSuperuser) return ROUTES.admin;
-  return data.organization ? ROUTES.dashboard : ROUTES.onboarding;
+  return ROUTES.onboarding;
 }
 
 export function useLogin() {

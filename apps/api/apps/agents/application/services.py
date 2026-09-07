@@ -100,22 +100,11 @@ class AgentService:
     def _specialize_response(
         self, agent: Agent, message: str, context: dict
     ) -> tuple[str, int, list]:
-        from apps.organizations.infrastructure.models import Organization
         from infrastructure.ai.llm import complete
+        from infrastructure.ai.organization_context import build_organization_context
         from infrastructure.ai.quota import evaluate_free_tier, record_ai_usage
 
-        org = Organization.objects.filter(pk=agent.organization_id).first()
-        org_bits = []
-        if org:
-            org_bits.append(f"Business: {org.name}")
-            if org.industry:
-                org_bits.append(f"Industry: {org.industry}")
-            if org.description:
-                org_bits.append(f"About: {org.description[:800]}")
-            if org.website:
-                org_bits.append(f"Website: {org.website}")
-            if org.business_context:
-                org_bits.append(f"Context: {org.business_context}")
+        organization_context = build_organization_context(agent.organization_id)
         ctx_bits = ", ".join(f"{k}={v}" for k, v in list(context.items())[:8])
         decision = evaluate_free_tier(agent.organization_id)
         if not decision.allowed:
@@ -127,7 +116,7 @@ class AgentService:
             f"You are {agent.name}, a Novixa {agent.type} agent working in real time for this "
             f"organization. Be detailed, practical, and actionable.\n"
             f"Agent playbook:\n{agent.system_prompt}\n"
-            f"Organization profile:\n" + ("\n".join(org_bits) or "Not provided yet.")
+            f"Organization profile:\n{organization_context}"
         )
         prompt = message.strip()
         if ctx_bits:
@@ -156,6 +145,9 @@ class AgentService:
                 "url": f"https://novixa.ai/agents/{agent.type}",
             }
         ]
+        from apps.organizations.infrastructure.models import Organization
+
+        org = Organization.objects.filter(pk=agent.organization_id).first()
         if org:
             citations.append({"title": org.name, "url": org.website or ""})
         return body, max(12, len(body.split())), citations

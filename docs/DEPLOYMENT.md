@@ -1,9 +1,9 @@
 # Novixa deployment — Render (API) + Vercel (web)
 
-| Piece | Host |
-|-------|------|
+| Piece                                  | Host       |
+| -------------------------------------- | ---------- |
 | Django API + Celery + Postgres + Redis | **Render** |
-| Next.js frontend | **Vercel** |
+| Next.js frontend                       | **Vercel** |
 
 ---
 
@@ -45,6 +45,21 @@ GITHUB_OAUTH_CLIENT_ID=...
 GITHUB_OAUTH_CLIENT_SECRET=...
 SENTRY_DSN=...
 SOCIAL_AUTH_STUB=False
+USE_S3=True
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
+AWS_STORAGE_BUCKET_NAME=novixa-production
+AWS_S3_REGION_NAME=us-east-1
+AWS_S3_ENDPOINT_URL=...
+AWS_S3_CUSTOM_DOMAIN=cdn.example.com
+KNOWLEDGE_PROCESS_INLINE=False
+REPORTS_PROCESS_INLINE=False
+DODO_API_KEY=...
+DODO_WEBHOOK_SECRET=whsec_...
+DODO_ENVIRONMENT=live_mode
+DODO_PRODUCT_STARTER=pdt_...
+DODO_PRODUCT_GROWTH=pdt_...
+DODO_PRODUCT_SCALE=pdt_...
 ```
 
 Payments are **USD only** — plan prices and mobile-money requests use USD amounts (no local FX conversion).
@@ -76,18 +91,26 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 Health check: `GET /api/v1/health/`
 
+### Durable uploaded media
+
+Render container files are ephemeral. Production avatars, organization logos, and uploaded
+documents therefore require an S3-compatible bucket (AWS S3, Cloudflare R2, DigitalOcean Spaces,
+etc.). Set `USE_S3=True` and the `AWS_*` values above. Keep
+`KNOWLEDGE_PROCESS_INLINE=False` / `REPORTS_PROCESS_INLINE=False` only when the Blueprint Celery
+worker is running; otherwise set both to `True`.
+
 ---
 
 ## 2. Frontend on Vercel
 
 Do **not** deploy the Next.js app on Render. Use Vercel only.
 
-| Setting | Value |
-|---------|-------|
-| Framework | Next.js |
-| Root Directory | `apps/web` |
+| Setting         | Value                   |
+| --------------- | ----------------------- |
+| Framework       | Next.js                 |
+| Root Directory  | `apps/web`              |
 | Install Command | default (`npm install`) |
-| Build Command | `npm run build` |
+| Build Command   | `npm run build`         |
 
 Root `prepare` skips Husky when `CI` or `VERCEL` is set, so installs do not fail on Vercel.
 

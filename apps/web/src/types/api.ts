@@ -37,6 +37,9 @@ export type Organization = {
   phone?: string;
   address?: string;
   logoUrl?: string | null;
+  businessContext?: Record<string, unknown>;
+  onboardingCompleted?: boolean;
+  onboardingCompletedAt?: string | null;
   plan?: string;
 };
 

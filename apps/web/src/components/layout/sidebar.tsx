@@ -63,6 +63,7 @@ export function Sidebar() {
 
   return (
     <aside
+      data-guide="sidebar"
       className={cn(
         "border-sidebar-border bg-sidebar text-sidebar-foreground hidden h-screen flex-col border-r transition-[width] duration-200 md:flex",
         sidebarCollapsed ? "w-[72px]" : "w-64",

@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
+import hmac
+import time
 from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
+import httpx
 from django.conf import settings
 
 
@@ -39,6 +45,8 @@ class DodoPaymentsClient:
         coupon: str | None = None,
         success_url: str | None = None,
         cancel_url: str | None = None,
+        customer_email: str = "",
+        customer_name: str = "",
     ) -> CheckoutSession:
         session_id = f"dodo_cs_{uuid4().hex[:16]}"
         frontend = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
@@ -46,8 +54,44 @@ class DodoPaymentsClient:
             f"&coupon={coupon}" if coupon else ""
         )
         if not self.is_stub:
-            # Real integration would call Dodo HTTP API here.
-            url = f"https://checkout.dodopayments.com/session/{session_id}"
+            product_id = getattr(settings, f"DODO_PRODUCT_{plan_code.upper()}", "") or ""
+            if not product_id:
+                raise RuntimeError(f"DODO_PRODUCT_{plan_code.upper()} is required.")
+            environment = getattr(settings, "DODO_ENVIRONMENT", "live_mode")
+            endpoint = (
+                "https://test.dodopayments.com/checkouts"
+                if environment == "test_mode"
+                else "https://live.dodopayments.com/checkouts"
+            )
+            return_url = success_url or (
+                f"{frontend}/billing/checkout/dodo?plan={plan_code}&org={organization_id}"
+            )
+            payload: dict[str, Any] = {
+                "product_cart": [{"product_id": product_id, "quantity": 1}],
+                "return_url": return_url,
+                "metadata": {
+                    "organization_id": organization_id,
+                    "plan_code": plan_code,
+                },
+            }
+            if customer_email:
+                payload["customer"] = {
+                    "email": customer_email,
+                    "name": customer_name or customer_email,
+                }
+            response = httpx.post(
+                endpoint,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=20,
+            )
+            response.raise_for_status()
+            result = response.json()
+            session_id = str(result["session_id"])
+            url = str(result["checkout_url"])
         return CheckoutSession(
             id=session_id,
             checkout_url=url,
@@ -65,14 +109,42 @@ class DodoPaymentsClient:
             portal_url=f"https://portal.dodopayments.com/{customer_id or organization_id}"
         )
 
-    def verify_webhook_signature(self, payload: bytes, signature: str | None) -> bool:
+    def verify_webhook_signature(
+        self,
+        payload: bytes,
+        signature: str | None,
+        webhook_id: str | None = None,
+        webhook_timestamp: str | None = None,
+    ) -> bool:
         secret = getattr(settings, "DODO_WEBHOOK_SECRET", "")
         if not secret:
-            return True  # stub mode accepts all
-        if not signature:
+            return self.is_stub
+        if not signature or not webhook_id or not webhook_timestamp:
             return False
-        # Soft stub: accept when signature equals secret or "stub"
-        return signature in {secret, f"sha256={secret}", "stub"}
+        try:
+            timestamp = int(webhook_timestamp)
+        except (ValueError, binascii.Error):
+            return False
+        if abs(int(time.time()) - timestamp) > 300:
+            return False
+        try:
+            secret_bytes = (
+                base64.b64decode(secret.removeprefix("whsec_"))
+                if secret.startswith("whsec_")
+                else secret.encode()
+            )
+        except ValueError:
+            return False
+        signed = f"{webhook_id}.{webhook_timestamp}.".encode() + payload
+        expected = base64.b64encode(
+            hmac.new(secret_bytes, signed, hashlib.sha256).digest()
+        ).decode()
+        candidates = [
+            value.split(",", 1)[-1]
+            for value in signature.replace(" ", ",").split(",")
+            if value and value != "v1"
+        ]
+        return any(hmac.compare_digest(expected, candidate) for candidate in candidates)
 
     def refund(self, *, invoice_id: str, amount_cents: int | None = None) -> dict[str, Any]:
         return {

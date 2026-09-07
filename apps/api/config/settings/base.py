@@ -157,13 +157,25 @@ STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS: list[Path] = []
 STORAGES = {
-    "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
-    },
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+USE_S3 = env.bool("USE_S3", default=False)
+if USE_S3:
+    INSTALLED_APPS = [*INSTALLED_APPS, "storages"]
+    STORAGES["default"] = {"BACKEND": "storages.backends.s3.S3Storage"}
+    AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="")
+    AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="")
+    AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="")
+    AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="us-east-1")
+    AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default="") or None
+    AWS_S3_CUSTOM_DOMAIN = env("AWS_S3_CUSTOM_DOMAIN", default="") or None
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = env.bool("AWS_QUERYSTRING_AUTH", default=False)
+    AWS_S3_FILE_OVERWRITE = False
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -236,7 +248,7 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "infrastructure.authentication.OnboardingJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_FILTER_BACKENDS": (
@@ -386,6 +398,10 @@ if MANUAL_PAYMENT_CURRENCY != "usd":
 # Card processor (Dodo) — empty key keeps local stub checkout + auto-charge.
 DODO_API_KEY = env("DODO_API_KEY", default="")
 DODO_WEBHOOK_SECRET = env("DODO_WEBHOOK_SECRET", default="")
+DODO_ENVIRONMENT = env("DODO_ENVIRONMENT", default="live_mode")
+DODO_PRODUCT_STARTER = env("DODO_PRODUCT_STARTER", default="")
+DODO_PRODUCT_GROWTH = env("DODO_PRODUCT_GROWTH", default="")
+DODO_PRODUCT_SCALE = env("DODO_PRODUCT_SCALE", default="")
 
 # Meta Graph / WhatsApp Cloud — empty token keeps verified-local stub connect/publish.
 META_GRAPH_ACCESS_TOKEN = env("META_GRAPH_ACCESS_TOKEN", default="")

@@ -28,6 +28,7 @@ class OrganizationUpdateSerializer(serializers.Serializer):
     phone = serializers.CharField(required=False, allow_blank=True, max_length=64)
     address = serializers.CharField(required=False, allow_blank=True)
     business_context = serializers.DictField(required=False)
+    onboarding_completed = serializers.BooleanField(required=False)
 
 
 class OrganizationSerializer(serializers.Serializer):
@@ -42,6 +43,8 @@ class OrganizationSerializer(serializers.Serializer):
     address = serializers.CharField(required=False, allow_blank=True)
     business_context = serializers.DictField(required=False)
     logo_url = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    onboarding_completed_at = serializers.DateTimeField(required=False, allow_null=True)
+    onboarding_completed = serializers.BooleanField(required=False)
     created_at = serializers.DateTimeField()
     updated_at = serializers.DateTimeField()
 
@@ -59,6 +62,8 @@ class OrganizationSerializer(serializers.Serializer):
                 "address": instance.address,
                 "business_context": instance.business_context or {},
                 "logo_url": instance.logo_url,
+                "onboarding_completed_at": instance.onboarding_completed_at,
+                "onboarding_completed": instance.onboarding_completed_at is not None,
                 "created_at": instance.created_at,
                 "updated_at": instance.updated_at,
             }

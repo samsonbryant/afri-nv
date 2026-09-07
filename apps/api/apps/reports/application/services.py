@@ -18,6 +18,7 @@ from apps.reports.domain.entities import REPORT_TEMPLATES
 from apps.reports.domain.exceptions import InvalidReportTypeError, ReportNotFoundError
 from apps.reports.infrastructure.models import Report
 from infrastructure.ai.llm import complete
+from infrastructure.ai.organization_context import with_organization_context
 
 logger = logging.getLogger("apps.reports")
 
@@ -101,7 +102,11 @@ class ReportService:
                 f"{report.period_start} to {report.period_end}.\n\n"
                 f"Metrics:\n{metrics}\n\n"
                 "Include highlights, risks, and recommended next steps in markdown.",
-                system="You are a business intelligence analyst for Novixa.",
+                system=with_organization_context(
+                    "You are a business intelligence analyst for Novixa.",
+                    report.organization_id,
+                ),
+                organization_id=str(report.organization_id),
             )
             report.content = {
                 "markdown": narrative,

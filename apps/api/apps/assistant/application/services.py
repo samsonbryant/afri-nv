@@ -223,6 +223,7 @@ class AssistantService:
         max_tokens: int,
     ) -> tuple[str, list[dict], int]:
         from infrastructure.ai.client import get_openai_client, resolve_chat_model
+        from infrastructure.ai.organization_context import with_organization_context
 
         client = get_openai_client(api_key)
         # Free tier: keep history short to stay within the small completion budget.
@@ -235,6 +236,7 @@ class AssistantService:
             system += " Keep answers under 3 short sentences. No long lists."
         else:
             system += " Include practical next steps when useful."
+        system = with_organization_context(system, conversation.organization_id)
 
         messages = [{"role": "system", "content": system}]
         for msg in history:

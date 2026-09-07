@@ -2,6 +2,7 @@ import { api } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import { ApiError } from "@/lib/api/errors";
 import { unwrapList } from "@/lib/api/org";
+import { toSameOriginAssetUrl } from "@/lib/constants";
 import type { Organization, OrganizationMember, PaginatedResponse } from "@/types/api";
 
 function notAvailable(feature: string, error: unknown): never {
@@ -23,6 +24,12 @@ function pickString(raw: Record<string, unknown>, ...keys: string[]): string {
 }
 
 export function normalizeOrganization(raw: Record<string, unknown>): Organization {
+  const businessContext =
+    raw.business_context && typeof raw.business_context === "object"
+      ? (raw.business_context as Record<string, unknown>)
+      : raw.businessContext && typeof raw.businessContext === "object"
+        ? (raw.businessContext as Record<string, unknown>)
+        : {};
   return {
     id: String(raw.id ?? ""),
     name: String(raw.name ?? "Organization"),
@@ -34,9 +41,55 @@ export function normalizeOrganization(raw: Record<string, unknown>): Organizatio
     website: pickString(raw, "website") || undefined,
     phone: pickString(raw, "phone") || undefined,
     address: pickString(raw, "address") || undefined,
-    logoUrl: pickString(raw, "logo_url", "logoUrl") || null,
+    logoUrl: toSameOriginAssetUrl(pickString(raw, "logo_url", "logoUrl")) || null,
+    businessContext,
+    onboardingCompleted: Boolean(raw.onboarding_completed ?? raw.onboardingCompleted),
+    onboardingCompletedAt:
+      pickString(raw, "onboarding_completed_at", "onboardingCompletedAt") || null,
     plan: pickString(raw, "plan") || undefined,
   };
+}
+
+export type BootstrapState = {
+  organization: Organization | null;
+  subscriptionStatus: string;
+  trialEnd: string | null;
+  paymentMethodReady: boolean;
+  entitlementActive: boolean;
+  profileComplete: boolean;
+  nextStep: "organization" | "trial" | "profile" | "dashboard";
+};
+
+export async function fetchBootstrapState(organizationId?: string | null): Promise<BootstrapState> {
+  const suffix = organizationId ? `?organization_id=${encodeURIComponent(organizationId)}` : "";
+  const raw = await api.get<Record<string, unknown>>(
+    `${API_ENDPOINTS.organizations.bootstrap}${suffix}`,
+  );
+  const organizationRaw =
+    raw.organization && typeof raw.organization === "object"
+      ? (raw.organization as Record<string, unknown>)
+      : null;
+  return {
+    organization: organizationRaw ? normalizeOrganization(organizationRaw) : null,
+    subscriptionStatus: pickString(raw, "subscription_status") || "none",
+    trialEnd: pickString(raw, "trial_end") || null,
+    paymentMethodReady: Boolean(raw.payment_method_ready),
+    entitlementActive: Boolean(raw.entitlement_active),
+    profileComplete: Boolean(raw.profile_complete),
+    nextStep: (pickString(raw, "next_step") as BootstrapState["nextStep"]) || "organization",
+  };
+}
+
+export async function completeOnboardingRequest(organizationId: string): Promise<Organization> {
+  const raw = await api.post<Record<string, unknown>>(
+    API_ENDPOINTS.organizations.completeOnboarding(organizationId),
+    {},
+  );
+  const organizationRaw =
+    raw.organization && typeof raw.organization === "object"
+      ? (raw.organization as Record<string, unknown>)
+      : raw;
+  return normalizeOrganization(organizationRaw);
 }
 
 export function normalizeMembership(raw: Record<string, unknown>): OrganizationMember {

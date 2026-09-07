@@ -36,11 +36,13 @@ def _absolute_avatar(request: Request, user_data: dict) -> dict:
     return user_data
 
 
-def _ensure_organization(user) -> dict:
+def _ensure_organization(user, *, workspace_name: str = "") -> dict:
     display = f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
     if not display:
         display = getattr(user, "email", "Personal").split("@")[0]
-    org = get_organization_service().ensure_default(user.id, display_name=display)
+    org = get_organization_service().ensure_default(
+        user.id, display_name=display, workspace_name=workspace_name
+    )
     return OrganizationSerializer(org).data
 
 
@@ -69,7 +71,9 @@ class RegisterView(APIView):
         return Response(
             {
                 "user": _absolute_avatar(request, UserSerializer(user).data),
-                "organization": _ensure_organization(user),
+                "organization": _ensure_organization(
+                    user, workspace_name=data.get("organization_name", "")
+                ),
                 "tokens": TokenPairSerializer(tokens).data,
             },
             status=status.HTTP_201_CREATED,

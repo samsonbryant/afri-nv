@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from django.core.files.uploadedfile import UploadedFile
+from django.db import transaction
+
 from apps.organizations.domain.entities import MembershipEntity, OrganizationEntity
 from apps.organizations.domain.repositories import (
     AbstractMembershipRepository,
@@ -45,6 +48,7 @@ class DjangoOrganizationRepository(AbstractOrganizationRepository):
         orm.phone = org.phone
         orm.address = org.address
         orm.business_context = org.business_context or {}
+        orm.onboarding_completed_at = org.onboarding_completed_at
         orm.save(
             update_fields=[
                 "name",
@@ -55,9 +59,27 @@ class DjangoOrganizationRepository(AbstractOrganizationRepository):
                 "phone",
                 "address",
                 "business_context",
+                "onboarding_completed_at",
                 "updated_at",
             ]
         )
+        return self._to_entity(orm)
+
+    def set_logo(self, org_id: UUID, file: UploadedFile) -> OrganizationEntity:
+        orm = Organization.objects.get(pk=org_id)
+        old_name = orm.logo.name if orm.logo else ""
+        storage = orm.logo.storage
+        orm.logo = file
+        orm.save(update_fields=["logo", "updated_at"])
+        if old_name and old_name != orm.logo.name:
+
+            def delete_old_logo() -> None:
+                try:
+                    storage.delete(old_name)
+                except Exception:
+                    pass
+
+            transaction.on_commit(delete_old_logo)
         return self._to_entity(orm)
 
     def delete(self, org_id: UUID) -> None:
@@ -85,6 +107,7 @@ class DjangoOrganizationRepository(AbstractOrganizationRepository):
             address=org.address or "",
             business_context=org.business_context or {},
             logo_url=logo_url,
+            onboarding_completed_at=org.onboarding_completed_at,
         )
 
 

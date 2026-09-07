@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
+import { GuideLauncher } from "@/features/guides/components/guide-launcher";
 import { ROUTES } from "@/lib/constants";
 import { useUiStore } from "@/stores/ui-store";
 
@@ -59,6 +60,7 @@ export function Topbar({ title }: TopbarProps) {
       )}
 
       <div className="ml-auto flex items-center gap-1">
+        <GuideLauncher />
         <ThemeToggle />
 
         <DropdownMenu>

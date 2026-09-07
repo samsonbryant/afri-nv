@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from infrastructure.persistence.base import BaseModel
 
@@ -30,6 +31,7 @@ class Organization(BaseModel):
     phone = models.CharField(max_length=64, blank=True, default="")
     address = models.TextField(blank=True, default="")
     business_context = models.JSONField(default=dict, blank=True)
+    onboarding_completed_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     class Meta:
         db_table = "organizations_organization"
@@ -37,6 +39,14 @@ class Organization(BaseModel):
 
     def __str__(self) -> str:
         return self.name
+
+    @property
+    def onboarding_completed(self) -> bool:
+        return self.onboarding_completed_at is not None
+
+    def mark_onboarding_complete(self) -> None:
+        if self.onboarding_completed_at is None:
+            self.onboarding_completed_at = timezone.now()
 
 
 class Membership(BaseModel):

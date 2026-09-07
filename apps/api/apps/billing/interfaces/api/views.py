@@ -154,9 +154,16 @@ class DodoWebhookView(APIView):
 
     @extend_schema(tags=["billing"])
     def post(self, request: Request) -> Response:
-        signature = request.headers.get("X-Dodo-Signature") or request.headers.get("Dodo-Signature")
+        raw_payload = request.body
+        signature = request.headers.get("Webhook-Signature")
         payload = request.data if isinstance(request.data, dict) else {}
-        result = get_billing_service().handle_dodo_webhook(payload, signature)
+        result = get_billing_service().handle_dodo_webhook(
+            payload,
+            signature,
+            raw_payload=raw_payload,
+            webhook_id=request.headers.get("Webhook-Id"),
+            webhook_timestamp=request.headers.get("Webhook-Timestamp"),
+        )
         return Response(result)
 
 

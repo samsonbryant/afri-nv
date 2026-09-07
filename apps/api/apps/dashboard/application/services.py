@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from apps.ai_engine.infrastructure.models import Document
 from apps.automations.infrastructure.models import AutomationRun
+from apps.billing.infrastructure.models import Subscription
 from apps.dashboard.application.dto import (
     ActivityFeedDTO,
     NotificationDTO,
@@ -54,6 +55,25 @@ class DashboardService:
         )
         ai_tokens_used = int(tokens_agg["total"] or 0)
         members_count = self._memberships.count_for_organization(organization_id)
+        subscription = (
+            Subscription.objects.filter(organization_id=organization_id)
+            .exclude(status=Subscription.Status.CANCELLED)
+            .select_related("plan")
+            .order_by("-created_at")
+            .first()
+        )
+        subscription_status = subscription.status if subscription else "none"
+        entitled = bool(
+            subscription
+            and (
+                subscription.status == Subscription.Status.ACTIVE
+                or (
+                    subscription.status == Subscription.Status.TRIALING
+                    and subscription.trial_end
+                    and subscription.trial_end > timezone.now()
+                )
+            )
+        )
 
         return OverviewDTO(
             kpis=OverviewKPI(
@@ -62,8 +82,8 @@ class DashboardService:
                 ai_documents_count=ai_documents_count,
                 ai_tokens_used=ai_tokens_used,
                 members_count=members_count,
-                plan=org.plan,
-                subscription_status="active" if org.plan != "free" else "free",
+                plan=subscription.plan.code if entitled and subscription else "free",
+                subscription_status=subscription_status,
             )
         )
 

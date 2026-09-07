@@ -12,6 +12,7 @@ class RegisterSerializer(serializers.Serializer):
     password = serializers.CharField(min_length=8, write_only=True)
     first_name = serializers.CharField(required=False, allow_blank=True, default="")
     last_name = serializers.CharField(required=False, allow_blank=True, default="")
+    organization_name = serializers.CharField(required=False, allow_blank=True, max_length=255)
 
 
 class LoginSerializer(serializers.Serializer):

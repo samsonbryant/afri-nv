@@ -177,6 +177,10 @@ export async function apiClient<T>(path: string, options: ApiClientOptions = {})
   if (accessToken) {
     headers.set("Authorization", `Bearer ${accessToken}`);
   }
+  const activeOrganizationId = useAuthStore.getState().organization?.id;
+  if (!skipAuth && activeOrganizationId && !headers.has("X-Organization-ID")) {
+    headers.set("X-Organization-ID", activeOrganizationId);
+  }
 
   headers.set("Accept", "application/json");
 
@@ -235,9 +239,21 @@ export async function apiClient<T>(path: string, options: ApiClientOptions = {})
   const payload = isJson ? await response.json() : await response.text();
 
   if (!response.ok) {
+    const errorCode = extractErrorCode(payload);
+    if (
+      response.status === 403 &&
+      errorCode.startsWith("onboarding_") &&
+      typeof window !== "undefined"
+    ) {
+      const step = errorCode.includes("profile") ? "profile" : "trial";
+      const destination = `/onboarding?step=${step}`;
+      if (`${window.location.pathname}${window.location.search}` !== destination) {
+        window.location.assign(destination);
+      }
+    }
     throw new ApiError(extractErrorMessage(payload, response.status), {
       status: response.status,
-      code: extractErrorCode(payload),
+      code: errorCode,
       details:
         typeof payload === "object" && payload !== null
           ? (payload as Record<string, unknown>)
