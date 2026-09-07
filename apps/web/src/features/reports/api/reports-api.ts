@@ -10,39 +10,52 @@ import type {
 } from "@/features/reports/types";
 
 function mapTemplate(raw: Record<string, unknown>): ReportTemplate {
+  const type = pickString(raw, "type", "id", "category") || "financial";
   return {
-    id: pickString(raw, "id"),
-    name: pickString(raw, "name"),
+    id: type,
+    name: pickString(raw, "label", "name") || type.replace(/_/g, " "),
     description: (raw.description as string | undefined) ?? undefined,
-    category: (pickString(raw, "category") || "financial") as ReportCategory,
+    category: type as ReportCategory,
   };
 }
 
 function mapReport(raw: Record<string, unknown>): Report {
+  const contentRaw = raw.content;
+  let content: string | null = null;
+  if (typeof contentRaw === "string") {
+    content = contentRaw;
+  } else if (contentRaw && typeof contentRaw === "object") {
+    const obj = contentRaw as Record<string, unknown>;
+    content =
+      (typeof obj.markdown === "string" && obj.markdown) ||
+      (typeof obj.text === "string" && obj.text) ||
+      JSON.stringify(contentRaw, null, 2);
+  }
+  const type = pickString(raw, "type", "templateId", "template_id");
   return {
     id: pickString(raw, "id"),
-    templateId: pickString(raw, "templateId", "template_id"),
-    templateName: pickString(raw, "templateName", "template_name") || undefined,
+    templateId: type,
+    templateName: pickString(raw, "templateName", "template_name", "title") || type || undefined,
     title: pickString(raw, "title") || "Untitled Report",
     periodStart: pickString(raw, "periodStart", "period_start"),
     periodEnd: pickString(raw, "periodEnd", "period_end"),
     status: (pickString(raw, "status") || "ready") as Report["status"],
-    content: (raw.content as string | null | undefined) ?? null,
+    content,
     createdAt: pickIso(raw, "createdAt", "created_at"),
     updatedAt: pickIso(raw, "updatedAt", "updated_at"),
   };
 }
 
 const DEFAULT_TEMPLATES: ReportTemplate[] = [
-  { id: "tpl-financial", name: "Financial Report", category: "financial" },
-  { id: "tpl-sales", name: "Sales Report", category: "sales" },
-  { id: "tpl-hr", name: "HR Report", category: "hr" },
-  { id: "tpl-marketing", name: "Marketing Report", category: "marketing" },
-  { id: "tpl-inventory", name: "Inventory Report", category: "inventory" },
-  { id: "tpl-executive", name: "Executive Summary", category: "executive" },
-  { id: "tpl-weekly", name: "Weekly Report", category: "weekly" },
-  { id: "tpl-monthly", name: "Monthly Report", category: "monthly" },
-  { id: "tpl-annual", name: "Annual Report", category: "annual" },
+  { id: "financial", name: "Financial Report", category: "financial" },
+  { id: "sales", name: "Sales Report", category: "sales" },
+  { id: "hr", name: "HR Report", category: "hr" },
+  { id: "marketing", name: "Marketing Report", category: "marketing" },
+  { id: "inventory", name: "Inventory Report", category: "inventory" },
+  { id: "executive", name: "Executive Summary", category: "executive" },
+  { id: "weekly", name: "Weekly Report", category: "weekly" },
+  { id: "monthly", name: "Monthly Report", category: "monthly" },
+  { id: "annual", name: "Annual Report", category: "annual" },
 ];
 
 function demoReports(): Report[] {
@@ -108,7 +121,7 @@ export async function generateReport(payload: GenerateReportPayload): Promise<Re
   }
 
   const body: Record<string, unknown> = {
-    template_id: payload.templateId,
+    type: payload.templateId.replace(/^tpl-/, ""),
     period_start: payload.periodStart,
     period_end: payload.periodEnd,
   };

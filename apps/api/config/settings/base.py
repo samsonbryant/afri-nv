@@ -382,3 +382,12 @@ ORANGE_MONEY_ACCOUNT_NAME = env("ORANGE_MONEY_ACCOUNT_NAME", default="Novixa")
 MANUAL_PAYMENT_CURRENCY = env("MANUAL_PAYMENT_CURRENCY", default="usd").lower()
 if MANUAL_PAYMENT_CURRENCY != "usd":
     MANUAL_PAYMENT_CURRENCY = "usd"
+
+# Card processor (Dodo) — empty key keeps local stub checkout + auto-charge.
+DODO_API_KEY = env("DODO_API_KEY", default="")
+DODO_WEBHOOK_SECRET = env("DODO_WEBHOOK_SECRET", default="")
+
+# Meta Graph / WhatsApp Cloud — empty token keeps verified-local stub connect/publish.
+META_GRAPH_ACCESS_TOKEN = env("META_GRAPH_ACCESS_TOKEN", default="")
+META_WHATSAPP_PHONE_NUMBER_ID = env("META_WHATSAPP_PHONE_NUMBER_ID", default="")
+META_WHATSAPP_DEFAULT_TO = env("META_WHATSAPP_DEFAULT_TO", default="")

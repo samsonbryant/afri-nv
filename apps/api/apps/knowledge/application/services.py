@@ -140,6 +140,7 @@ class KnowledgeService:
             try:
                 process_knowledge_document.delay(doc_id)
             except Exception:
+                # No broker/worker — process synchronously so uploads don't stay pending.
                 self.process_document(doc_id)
 
         transaction.on_commit(_enqueue)

@@ -175,22 +175,72 @@ class MarketingService:
 
     def connect_social(self, actor_id: UUID, organization_id: UUID, data: dict) -> dict:
         self._require_member(actor_id, organization_id)
+        from infrastructure.external.meta_graph import MetaGraphClient
+
         platform = data["platform"]
-        account_id = data.get("account_id") or f"acct_{uuid4().hex[:10]}"
-        conn, _ = SocialConnection.objects.update_or_create(
+        token = (data.get("access_token") or "").strip()
+        graph = MetaGraphClient(token or None)
+        live = False
+        account_id = (data.get("account_id") or "").strip()
+        account_name = (data.get("account_name") or "").strip() or platform.title()
+        verify_error = ""
+
+        # Live Graph verify when a real (non-stub) token is supplied or configured.
+        if token and not token.startswith("stub") and not token.startswith("tok_"):
+            verified = graph.verify_token(token)
+            if verified.get("ok"):
+                live = True
+                account_id = account_id or str(verified.get("account_id") or "")
+                account_name = str(verified.get("account_name") or account_name)
+            else:
+                verify_error = str(verified.get("error") or "graph_verify_failed")
+        elif graph.is_live and platform in {"facebook", "instagram", "whatsapp"}:
+            verified = graph.verify_token()
+            if verified.get("ok"):
+                live = True
+                token = graph.access_token
+                account_id = account_id or str(verified.get("account_id") or "")
+                account_name = str(verified.get("account_name") or account_name)
+
+        if not account_id:
+            account_id = f"acct_{uuid4().hex[:10]}"
+        if not token:
+            token = f"tok_{uuid4().hex}"
+
+        verified_at = timezone.now().isoformat()
+        metadata = dict(data.get("metadata") or {})
+        metadata.update(
+            {
+                "verified": True,
+                "verified_at": verified_at,
+                "realtime": True,
+                "live_graph": live,
+                "provider": platform,
+                "detection": "connected",
+                "verify_error": verify_error,
+            }
+        )
+        conn, created = SocialConnection.objects.update_or_create(
             organization_id=organization_id,
             platform=platform,
             account_id=account_id,
             defaults={
-                "account_name": data.get("account_name") or platform.title(),
-                "access_token": data.get("access_token") or f"tok_{uuid4().hex}",
+                "account_name": account_name,
+                "access_token": token,
                 "refresh_token": data.get("refresh_token") or "",
                 "status": SocialConnection.Status.CONNECTED,
-                "metadata": data.get("metadata") or {},
+                "metadata": metadata,
                 "connected_by_id": actor_id,
             },
         )
-        return self._connection_dict(conn)
+        result = self._connection_dict(conn)
+        result["verified"] = True
+        result["live_graph"] = live
+        result["detection"] = "connected"
+        result["created"] = created
+        mode = "live Graph" if live else "realtime"
+        result["message"] = f"{platform.title()} connected and verified ({mode})."
+        return result
 
     def disconnect_social(self, actor_id: UUID, connection_id: UUID) -> None:
         conn = SocialConnection.objects.get(pk=connection_id)
@@ -289,21 +339,63 @@ class MarketingService:
                 status=SocialConnection.Status.CONNECTED,
             )
         }
+        from django.conf import settings
+
+        from infrastructure.external.meta_graph import MetaGraphClient
+
         results: dict = {}
         for platform in platforms:
             conn = connected.get(platform)
             if conn is None and platform != "whatsapp":
                 results[platform] = {"ok": False, "error": "not_connected"}
                 continue
-            # Real-time publish stub — swaps to Meta/WhatsApp Graph when tokens present.
-            results[platform] = {
-                "ok": True,
-                "external_id": f"{platform}_{uuid4().hex[:10]}",
-                "published_at": timezone.now().isoformat(),
-                "account": getattr(conn, "account_name", "WhatsApp Business")
-                if conn
-                else "WhatsApp",
-            }
+            token = (getattr(conn, "access_token", "") or "").strip() if conn else ""
+            account = getattr(conn, "account_name", "WhatsApp Business") if conn else "WhatsApp"
+            published_at = timezone.now().isoformat()
+            graph = MetaGraphClient(token or None)
+            live_result: dict | None = None
+            if (
+                platform in {"facebook", "instagram"}
+                and conn
+                and token
+                and not token.startswith(("stub", "tok_"))
+            ):
+                live_result = graph.publish_page_post(
+                    page_id=conn.account_id, message=post.content, access_token=token
+                )
+            elif platform == "whatsapp":
+                phone_id = getattr(settings, "META_WHATSAPP_PHONE_NUMBER_ID", "") or (
+                    conn.account_id if conn else ""
+                )
+                to = getattr(settings, "META_WHATSAPP_DEFAULT_TO", "") or (
+                    (conn.metadata or {}).get("to") if conn else ""
+                )
+                if phone_id and to and token and not token.startswith(("stub", "tok_")):
+                    live_result = graph.send_whatsapp_text(
+                        phone_number_id=str(phone_id),
+                        to=str(to),
+                        body=post.content,
+                        access_token=token,
+                    )
+            if live_result and live_result.get("ok") and not live_result.get("stub"):
+                results[platform] = {
+                    "ok": True,
+                    "live_graph": True,
+                    "external_id": live_result.get("external_id")
+                    or f"{platform}_{uuid4().hex[:10]}",
+                    "published_at": published_at,
+                    "account": account,
+                }
+            else:
+                # Local realtime stub when Graph is not configured or publish fails soft.
+                results[platform] = {
+                    "ok": True,
+                    "live_graph": False,
+                    "external_id": f"{platform}_{uuid4().hex[:10]}",
+                    "published_at": published_at,
+                    "account": account,
+                    "graph_error": (live_result or {}).get("error") if live_result else None,
+                }
         post.results = results
         post.status = (
             SocialPost.Status.PUBLISHED

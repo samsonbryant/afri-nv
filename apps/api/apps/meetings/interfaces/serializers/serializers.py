@@ -10,12 +10,12 @@ class MeetingWriteSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)
     description = serializers.CharField(required=False, allow_blank=True, default="")
     starts_at = serializers.DateTimeField()
-    ends_at = serializers.DateTimeField()
+    ends_at = serializers.DateTimeField(required=False)
     timezone = serializers.CharField(required=False, default="UTC")
     location = serializers.CharField(required=False, allow_blank=True, default="")
     meeting_url = serializers.URLField(required=False, allow_blank=True, default="")
     provider = serializers.ChoiceField(
-        choices=["zoom", "google_meet", "teams", "in_person", "other"],
+        choices=["zoom", "google_meet", "teams", "in_person", "other", "meet", "novixa"],
         required=False,
         default="other",
     )

@@ -176,11 +176,15 @@ function mapDirection(value: unknown): MessageDirection {
 }
 
 function mapChannel(raw: Record<string, unknown>): SupportChannel {
+  const isActive =
+    raw.is_active === true ||
+    raw.isActive === true ||
+    ["active", "connected"].includes(String(raw.status ?? "").toLowerCase());
   return {
     id: String(raw.id),
     name: pickString(raw, "name") || "Channel",
     type: mapChannelType(raw.type),
-    status: mapChannelStatus(raw.status),
+    status: isActive ? "active" : mapChannelStatus(raw.status ?? "inactive"),
     ticketCount: pickNumber(raw, "ticketCount", "ticket_count") || undefined,
     createdAt: pickIso(raw, "createdAt", "created_at"),
     updatedAt: pickIso(raw, "updatedAt", "updated_at"),
@@ -301,7 +305,7 @@ export async function replyToTicket(
   }
   const payload = await api.post<Record<string, unknown>>(
     withOrg(API_ENDPOINTS.support.reply(ticketId), organizationId),
-    { content, organization_id: organizationId },
+    { body: content, content, organization_id: organizationId },
   );
   return mapMessage(payload);
 }
@@ -322,7 +326,8 @@ export async function generateAiReply(
   );
   return {
     suggestion:
-      pickString(payload, "suggestion", "content", "reply", "message") || "AI reply unavailable.",
+      pickString(payload, "draft", "suggestion", "content", "reply", "message") ||
+      "AI reply unavailable.",
   };
 }
 

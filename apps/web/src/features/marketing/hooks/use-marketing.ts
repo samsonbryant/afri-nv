@@ -80,6 +80,7 @@ export function useSocialConnections() {
   return useQuery({
     queryKey: marketingKeys.connections(orgId),
     queryFn: () => fetchSocialConnections(orgId),
+    enabled: Boolean(orgId),
     refetchInterval: 15_000,
   });
 }
@@ -90,7 +91,7 @@ export function useConnectSocial() {
   return useMutation({
     mutationFn: (input: ConnectSocialInput) => connectSocialAccount(input, orgId),
     onSuccess: () => {
-      toast.success("Social account connected");
+      toast.success("Connected and verified in realtime");
       void queryClient.invalidateQueries({ queryKey: marketingKeys.connections(orgId) });
     },
     onError: (error) => toast.error(getErrorMessage(error)),

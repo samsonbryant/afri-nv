@@ -38,7 +38,12 @@ export function useKnowledgeDocuments() {
   return useQuery({
     queryKey: knowledgeKeys.documents(orgId),
     queryFn: () => fetchKnowledgeDocuments(orgId),
-    refetchInterval: 15000,
+    enabled: Boolean(orgId),
+    refetchInterval: (query) => {
+      const docs = query.state.data as Array<{ status?: string }> | undefined;
+      const busy = docs?.some((d) => d.status === "pending" || d.status === "processing");
+      return busy ? 2500 : 15000;
+    },
   });
 }
 

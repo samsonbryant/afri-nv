@@ -38,6 +38,7 @@ const PROVIDER_LABELS: Record<MeetingProvider, string> = {
   zoom: "Zoom",
   meet: "Google Meet",
   teams: "Microsoft Teams",
+  novixa: "Novixa (host in-app)",
 };
 
 export function MeetingsWorkspace() {

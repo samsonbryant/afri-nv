@@ -36,6 +36,8 @@ export function useSupportChannels() {
   return useQuery({
     queryKey: supportKeys.channels(orgId),
     queryFn: () => fetchChannels(orgId),
+    enabled: Boolean(orgId),
+    refetchInterval: 12000,
   });
 }
 
@@ -45,6 +47,8 @@ export function useSupportTickets() {
   return useQuery({
     queryKey: supportKeys.tickets(orgId, channelId),
     queryFn: () => fetchTickets(orgId, channelId),
+    enabled: Boolean(orgId),
+    refetchInterval: 8000,
   });
 }
 
@@ -53,7 +57,8 @@ export function useTicketMessages(ticketId: string | null) {
   return useQuery({
     queryKey: supportKeys.messages(ticketId, orgId),
     queryFn: () => fetchTicketMessages(ticketId!, orgId),
-    enabled: Boolean(ticketId),
+    enabled: Boolean(ticketId) && Boolean(orgId),
+    refetchInterval: 5000,
   });
 }
 
@@ -65,6 +70,8 @@ export function useSupportStats() {
   return useQuery({
     queryKey: supportKeys.stats(orgId),
     queryFn: () => fetchSupportStats(orgId),
+    enabled: Boolean(orgId),
+    refetchInterval: 15000,
   });
 }
 

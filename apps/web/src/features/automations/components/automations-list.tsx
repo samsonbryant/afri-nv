@@ -1,31 +1,35 @@
 "use client";
 
 import { Plus, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAutomations } from "@/features/automations/hooks/use-automations";
+import { ROUTES } from "@/lib/constants";
 import { formatRelative } from "@/lib/utils/format";
-import { toast } from "sonner";
 
 export function AutomationsList() {
+  const router = useRouter();
   const { data, isLoading, isError, refetch } = useAutomations();
+
+  function openBuilder(automationId?: string) {
+    if (automationId) {
+      router.push(ROUTES.workflowBuilder(automationId));
+      return;
+    }
+    router.push(ROUTES.workflows);
+  }
 
   return (
     <div>
       <PageHeader
         title="Automations"
-        description="Event-driven automations that keep your business moving."
+        description="Event-driven runs and workflow automations that keep your business moving in realtime."
         actions={
-          <Button
-            onClick={() =>
-              toast.message("New automation", {
-                description: "Automation builder connects once the API is live.",
-              })
-            }
-          >
+          <Button onClick={() => openBuilder()}>
             <Plus className="h-4 w-4" aria-hidden />
             New automation
           </Button>
@@ -54,13 +58,9 @@ export function AutomationsList() {
         <EmptyState
           icon={Zap}
           title="No automations yet"
-          description="Connect triggers to actions so routine work runs without you."
-          actionLabel="Create automation"
-          onAction={() =>
-            toast.message("New automation", {
-              description: "Automation builder connects once the API is live.",
-            })
-          }
+          description="Build a workflow to connect triggers to actions so routine work runs without you."
+          actionLabel="Open workflows"
+          onAction={() => openBuilder()}
         />
       ) : null}
 
@@ -83,7 +83,12 @@ export function AutomationsList() {
                   Updated {formatRelative(automation.updatedAt)}
                 </p>
               </div>
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() => openBuilder(automation.workflowId || automation.id)}
+              >
                 Configure
               </Button>
             </li>

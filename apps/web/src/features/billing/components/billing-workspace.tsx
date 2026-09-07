@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/table";
 import {
   useAttachCard,
+  useCheckout,
   useCreateManualPayment,
   useInvoices,
   useManualPaymentInstructions,
@@ -38,6 +39,7 @@ import {
 import type { BillingPlan, MobileMoneyProvider } from "@/features/billing/types";
 import { cn } from "@/lib/utils/cn";
 import { formatDate } from "@/lib/utils/format";
+import { toast } from "sonner";
 
 function formatMoney(amountCents: number) {
   const value = amountCents / 100;
@@ -57,6 +59,7 @@ export function BillingWorkspace() {
   const { data: manualPayments = [] } = useManualPayments();
   const createPayment = useCreateManualPayment();
   const attachCard = useAttachCard();
+  const checkout = useCheckout();
 
   const [selectedPlan, setSelectedPlan] = useState<BillingPlan | null>(null);
   const [provider, setProvider] = useState<MobileMoneyProvider>("mtn_momo");
@@ -250,25 +253,54 @@ export function BillingWorkspace() {
                       </li>
                     ))}
                   </ul>
-                  <Button
-                    className="mt-5"
-                    variant={current ? "secondary" : "default"}
-                    disabled={current || plan.id === "enterprise"}
-                    onClick={() => {
-                      setSelectedPlan(plan);
-                      setProvider("mtn_momo");
-                      setPayerPhone("");
-                      setPayerName("");
-                      setTransactionId("");
-                      setNotes("");
-                    }}
-                  >
-                    {current
-                      ? "Current plan"
-                      : plan.id === "enterprise"
-                        ? "Contact sales"
-                        : "Pay with MoMo"}
-                  </Button>
+                  <div className="mt-5 flex flex-col gap-2">
+                    <Button
+                      variant={current ? "secondary" : "default"}
+                      disabled={current || plan.id === "enterprise" || checkout.isPending}
+                      onClick={() => {
+                        if (plan.id === "enterprise") return;
+                        checkout.mutate(
+                          { planId: plan.id },
+                          {
+                            onSuccess: (result) => {
+                              if (result.url) {
+                                window.location.href = result.url;
+                                return;
+                              }
+                              toast.success(
+                                "15-day unlimited trial started — add a card below for auto-debit.",
+                              );
+                              setCardRef(`pm_trial_${plan.id}_${Date.now()}`);
+                              setCardLast4("4242");
+                              setCardBrand("visa");
+                            },
+                          },
+                        );
+                      }}
+                    >
+                      {current
+                        ? "Current plan"
+                        : plan.id === "enterprise"
+                          ? "Contact sales"
+                          : checkout.isPending
+                            ? "Starting…"
+                            : "Start with card (15-day trial)"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={current || plan.id === "enterprise"}
+                      onClick={() => {
+                        setSelectedPlan(plan);
+                        setProvider("mtn_momo");
+                        setPayerPhone("");
+                        setPayerName("");
+                        setTransactionId("");
+                        setNotes("");
+                      }}
+                    >
+                      Pay with MoMo instead
+                    </Button>
+                  </div>
                 </div>
               );
             })}

@@ -32,6 +32,12 @@ export function useReports() {
   return useQuery({
     queryKey: reportKeys.list(orgId),
     queryFn: () => fetchReports(orgId),
+    enabled: Boolean(orgId),
+    refetchInterval: (query) => {
+      const rows = query.state.data as Array<{ status?: string }> | undefined;
+      const busy = rows?.some((r) => r.status === "pending" || r.status === "generating");
+      return busy ? 3000 : 20000;
+    },
   });
 }
 

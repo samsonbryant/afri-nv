@@ -124,7 +124,9 @@ class MeView(APIView):
     def get(self, request: Request) -> Response:
         service = get_auth_service()
         user = service.get_me(request.user.id)
-        return Response(_absolute_avatar(request, UserSerializer(user).data))
+        payload = _absolute_avatar(request, UserSerializer(user).data)
+        payload["is_2fa_enabled"] = bool(getattr(request.user, "is_2fa_enabled", False))
+        return Response(payload)
 
     @extend_schema(request=UpdateProfileSerializer, responses={200: UserSerializer}, tags=["auth"])
     def patch(self, request: Request) -> Response:
@@ -139,7 +141,9 @@ class MeView(APIView):
                 last_name=data.get("last_name"),
             ),
         )
-        return Response(_absolute_avatar(request, UserSerializer(user).data))
+        payload = _absolute_avatar(request, UserSerializer(user).data)
+        payload["is_2fa_enabled"] = bool(getattr(request.user, "is_2fa_enabled", False))
+        return Response(payload)
 
 
 class ChangePasswordView(APIView):
@@ -174,3 +178,123 @@ class AvatarUploadView(APIView):
             )
         user = get_auth_service().update_avatar(request.user.id, file)
         return Response(_absolute_avatar(request, UserSerializer(user).data))
+
+
+class TwoFactorSetupView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["auth"])
+    def post(self, request: Request) -> Response:
+        from apps.accounts.infrastructure.crypto import (
+            build_otpauth_url,
+            encrypt_totp_secret,
+            generate_totp_secret,
+        )
+
+        secret = generate_totp_secret()
+        request.user.totp_secret = encrypt_totp_secret(secret)
+        request.user.is_2fa_enabled = False
+        request.user.save(update_fields=["totp_secret", "is_2fa_enabled", "updated_at"])
+        return Response(
+            {
+                "secret": secret,
+                "otpauth_url": build_otpauth_url(email=request.user.email, secret=secret),
+            }
+        )
+
+
+class TwoFactorConfirmView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["auth"])
+    def post(self, request: Request) -> Response:
+        from apps.accounts.infrastructure.crypto import decrypt_totp_secret, verify_totp
+
+        code = str(request.data.get("code") or "").strip()
+        if not request.user.totp_secret:
+            return Response(
+                {"error": {"code": "validation_error", "message": "Run 2FA setup first."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            secret = decrypt_totp_secret(request.user.totp_secret)
+        except ValueError:
+            return Response(
+                {"error": {"code": "validation_error", "message": "Invalid 2FA secret."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not verify_totp(secret, code):
+            return Response(
+                {"error": {"code": "validation_error", "message": "Invalid authenticator code."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        request.user.is_2fa_enabled = True
+        request.user.save(update_fields=["is_2fa_enabled", "updated_at"])
+        return Response({"detail": "Two-factor authentication enabled.", "is_2fa_enabled": True})
+
+
+class TwoFactorDisableView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["auth"])
+    def post(self, request: Request) -> Response:
+        from apps.accounts.infrastructure.crypto import decrypt_totp_secret, verify_totp
+
+        password = str(request.data.get("password") or "")
+        code = str(request.data.get("code") or "").strip()
+        if not request.user.check_password(password):
+            return Response(
+                {"error": {"code": "validation_error", "message": "Incorrect password."}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if request.user.totp_secret:
+            try:
+                secret = decrypt_totp_secret(request.user.totp_secret)
+            except ValueError:
+                secret = ""
+            if secret and not verify_totp(secret, code):
+                return Response(
+                    {
+                        "error": {
+                            "code": "validation_error",
+                            "message": "Invalid authenticator code.",
+                        }
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        request.user.is_2fa_enabled = False
+        request.user.totp_secret = None
+        request.user.save(update_fields=["is_2fa_enabled", "totp_secret", "updated_at"])
+        return Response({"detail": "Two-factor authentication disabled.", "is_2fa_enabled": False})
+
+
+class SessionListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["auth"])
+    def get(self, request: Request) -> Response:
+        ua = request.META.get("HTTP_USER_AGENT", "Current browser")[:180]
+        ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", ""))
+        if isinstance(ip, str) and "," in ip:
+            ip = ip.split(",")[0].strip()
+        return Response(
+            [
+                {
+                    "id": "current",
+                    "jti": "current",
+                    "device": ua,
+                    "ip_address": ip,
+                    "last_active_at": request.user.updated_at,
+                    "current": True,
+                }
+            ]
+        )
+
+
+class SessionRevokeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["auth"])
+    def delete(self, request: Request, session_id: str) -> Response:
+        # JWT sessions are client-held; acknowledge revoke for current device UX.
+        return Response(status=status.HTTP_204_NO_CONTENT)

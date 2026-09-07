@@ -17,8 +17,7 @@ import type {
   CreateMeetingInput,
   ReminderSettings,
 } from "@/features/meetings/types";
-import { useAuthStore } from "@/features/auth/stores/auth-store";
-import { useOrganizationsStore } from "@/features/organizations/stores/organizations-store";
+import { useActiveOrganizationId } from "@/features/organizations/hooks/use-organizations";
 import { getErrorMessage } from "@/lib/api/errors";
 
 export const meetingKeys = {
@@ -29,46 +28,46 @@ export const meetingKeys = {
   reminders: (orgId: string | null) => [...meetingKeys.all, "reminders", orgId] as const,
 };
 
-function useOrgId() {
-  const storeId = useOrganizationsStore((s) => s.activeOrganizationId);
-  const authOrgId = useAuthStore((s) => s.organization?.id ?? null);
-  return storeId ?? authOrgId;
-}
-
 export function useMeetings() {
-  const orgId = useOrgId();
+  const orgId = useActiveOrganizationId();
   return useQuery({
     queryKey: meetingKeys.list(orgId),
     queryFn: () => fetchMeetings(orgId),
+    enabled: Boolean(orgId),
+    refetchInterval: 12000,
   });
 }
 
 export function useCalendarConnections() {
-  const orgId = useOrgId();
+  const orgId = useActiveOrganizationId();
   return useQuery({
     queryKey: meetingKeys.connections(orgId),
     queryFn: () => fetchCalendarConnections(orgId),
+    enabled: Boolean(orgId),
+    refetchInterval: 15000,
   });
 }
 
 export function useBookingLinks() {
-  const orgId = useOrgId();
+  const orgId = useActiveOrganizationId();
   return useQuery({
     queryKey: meetingKeys.bookingLinks(orgId),
     queryFn: () => fetchBookingLinks(orgId),
+    enabled: Boolean(orgId),
   });
 }
 
 export function useReminderSettings() {
-  const orgId = useOrgId();
+  const orgId = useActiveOrganizationId();
   return useQuery({
     queryKey: meetingKeys.reminders(orgId),
     queryFn: () => fetchReminderSettings(orgId),
+    enabled: Boolean(orgId),
   });
 }
 
 export function useCreateMeeting() {
-  const orgId = useOrgId();
+  const orgId = useActiveOrganizationId();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateMeetingInput) => createMeeting(input, orgId),
@@ -81,12 +80,21 @@ export function useCreateMeeting() {
 }
 
 export function useConnectCalendar() {
-  const orgId = useOrgId();
+  const orgId = useActiveOrganizationId();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (provider: "google" | "microsoft") => connectCalendar(provider, orgId),
-    onSuccess: (_data, provider) => {
-      toast.success(`${provider === "google" ? "Google" : "Microsoft"} calendar connected`);
+    onSuccess: (data, provider) => {
+      const oauthUrl =
+        data && typeof data === "object" && "oauthUrl" in data
+          ? String((data as { oauthUrl?: string }).oauthUrl || "")
+          : "";
+      if (oauthUrl) {
+        window.open(oauthUrl, "_blank", "noopener,noreferrer");
+        toast.message("Complete calendar authorization in the new tab");
+      } else {
+        toast.success(`${provider === "google" ? "Google" : "Microsoft"} calendar connected`);
+      }
       void queryClient.invalidateQueries({
         queryKey: meetingKeys.connections(orgId),
       });
@@ -96,7 +104,7 @@ export function useConnectCalendar() {
 }
 
 export function useCreateBookingLink() {
-  const orgId = useOrgId();
+  const orgId = useActiveOrganizationId();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateBookingLinkInput) => createBookingLink(input, orgId),
@@ -111,7 +119,7 @@ export function useCreateBookingLink() {
 }
 
 export function useUpdateReminders() {
-  const orgId = useOrgId();
+  const orgId = useActiveOrganizationId();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (settings: ReminderSettings) => updateReminderSettings(settings, orgId),

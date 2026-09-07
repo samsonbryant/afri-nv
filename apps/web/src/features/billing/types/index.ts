@@ -99,4 +99,5 @@ export type AttachCardInput = {
   paymentMethodRef: string;
   cardLast4?: string;
   cardBrand?: string;
+  planCode?: string;
 };

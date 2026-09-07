@@ -49,16 +49,23 @@ class MeetingService:
 
     def create_meeting(self, actor_id: UUID, organization_id: UUID, data: dict) -> MeetingDTO:
         self._require_member(actor_id, organization_id)
+        starts_at = data["starts_at"]
+        ends_at = data.get("ends_at") or (starts_at + timedelta(hours=1))
+        provider = data.get("provider", Meeting.Provider.OTHER)
+        if provider in {"meet", "google"}:
+            provider = Meeting.Provider.GOOGLE_MEET
+        elif provider == "novixa":
+            provider = Meeting.Provider.OTHER
         meeting = Meeting.objects.create(
             organization_id=organization_id,
             title=data["title"],
             description=data.get("description", ""),
-            starts_at=data["starts_at"],
-            ends_at=data["ends_at"],
+            starts_at=starts_at,
+            ends_at=ends_at,
             timezone=data.get("timezone", "UTC"),
             location=data.get("location", ""),
             meeting_url=data.get("meeting_url", ""),
-            provider=data.get("provider", Meeting.Provider.OTHER),
+            provider=provider,
             status=data.get("status", Meeting.Status.SCHEDULED),
             organizer_id=data.get("organizer_id") or actor_id,
             attendees=data.get("attendees") or [],

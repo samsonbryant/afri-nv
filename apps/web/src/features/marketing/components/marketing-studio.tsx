@@ -259,6 +259,7 @@ function SocialConnectionsPanel() {
   const disconnect = useDisconnectSocial();
   const [platform, setPlatform] = useState<SocialPlatform>("facebook");
   const [accountName, setAccountName] = useState("");
+  const [accessToken, setAccessToken] = useState("");
 
   return (
     <div className="space-y-4">
@@ -268,14 +269,24 @@ function SocialConnectionsPanel() {
           e.preventDefault();
           if (!accountName.trim()) return;
           connect.mutate(
-            { platform, accountName: accountName.trim() },
-            { onSuccess: () => setAccountName("") },
+            {
+              platform,
+              accountName: accountName.trim(),
+              accessToken: accessToken.trim() || undefined,
+            },
+            {
+              onSuccess: () => {
+                setAccountName("");
+                setAccessToken("");
+              },
+            },
           );
         }}
       >
         <p className="text-muted-foreground text-sm">
-          Connect every social page for this business — including WhatsApp — for realtime posting
-          and ads.
+          Connect Facebook, Instagram, WhatsApp and other channels. Paste a Meta Graph / WhatsApp
+          Cloud token for live verify; without a token we still mark the channel connected in
+          realtime for local workflows.
         </p>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1.5">
@@ -293,19 +304,27 @@ function SocialConnectionsPanel() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="social-account">Page / account name</Label>
+            <Label htmlFor="social-account">Account / page name</Label>
             <Input
               id="social-account"
               value={accountName}
               onChange={(e) => setAccountName(e.target.value)}
-              placeholder="Acme Marketing"
-              required
+              placeholder="e.g. Novixa HQ"
+            />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label htmlFor="social-token">Access token (optional)</Label>
+            <Input
+              id="social-token"
+              value={accessToken}
+              onChange={(e) => setAccessToken(e.target.value)}
+              placeholder="Meta Graph or WhatsApp Cloud token"
+              autoComplete="off"
             />
           </div>
         </div>
         <Button type="submit" disabled={connect.isPending || !accountName.trim()}>
-          {connect.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          Connect
+          {connect.isPending ? "Connecting…" : "Connect & verify"}
         </Button>
       </form>
 
@@ -328,6 +347,7 @@ function SocialConnectionsPanel() {
                 <p className="font-medium">{conn.accountName}</p>
                 <p className="text-muted-foreground text-xs">
                   {conn.platform} · {conn.status}
+                  {conn.status === "connected" ? " · verified realtime" : ""}
                 </p>
               </div>
               <Button

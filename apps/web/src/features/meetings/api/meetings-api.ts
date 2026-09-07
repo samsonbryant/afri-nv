@@ -75,6 +75,7 @@ function mapProvider(value: unknown): MeetingProvider {
   const v = String(value ?? "zoom").toLowerCase();
   if (v === "meet" || v === "google_meet" || v === "google") return "meet";
   if (v === "teams" || v === "microsoft_teams") return "teams";
+  if (v === "other" || v === "novixa" || v === "in_person") return "novixa";
   return "zoom";
 }
 
@@ -90,10 +91,7 @@ function mapMeeting(raw: Record<string, unknown>): Meeting {
       (raw.ends_at as string | null | undefined) ??
       null,
     provider: mapProvider(raw.provider),
-    joinUrl:
-      (raw.joinUrl as string | null | undefined) ??
-      (raw.join_url as string | null | undefined) ??
-      null,
+    joinUrl: pickString(raw, "joinUrl", "join_url", "meeting_url", "meetingUrl") || null,
     status,
     createdAt: pickIso(raw, "createdAt", "created_at"),
     updatedAt: pickIso(raw, "updatedAt", "updated_at"),
@@ -103,14 +101,18 @@ function mapMeeting(raw: Record<string, unknown>): Meeting {
 function mapConnection(raw: Record<string, unknown>): CalendarConnection {
   const providerRaw = pickString(raw, "provider").toLowerCase();
   const provider = providerRaw.includes("micro") ? "microsoft" : "google";
+  const status = pickString(raw, "status").toLowerCase();
   return {
     id: String(raw.id ?? provider),
     provider,
     email: pickString(raw, "email", "account") || undefined,
-    connected: Boolean(raw.connected ?? raw.is_connected ?? false),
+    connected: Boolean(
+      raw.connected ?? raw.is_connected ?? (status === "active" || status === "connected"),
+    ),
     connectedAt:
       (raw.connectedAt as string | null | undefined) ??
       (raw.connected_at as string | null | undefined) ??
+      (raw.updated_at as string | null | undefined) ??
       null,
   };
 }
@@ -149,6 +151,7 @@ export async function createMeeting(
       id: `mtg-${Date.now()}`,
       title: input.title,
       startsAt: input.startsAt,
+      endsAt: input.endsAt ?? new Date(new Date(input.startsAt).getTime() + 3600000).toISOString(),
       provider: input.provider,
       joinUrl: null,
       status: "scheduled",
@@ -159,16 +162,44 @@ export async function createMeeting(
     return meeting;
   }
 
+  const starts = new Date(input.startsAt);
+  const endsAt =
+    input.endsAt ||
+    new Date(starts.getTime() + (input.durationMinutes ?? 60) * 60_000).toISOString();
+  const providerMap: Record<string, string> = {
+    meet: "google_meet",
+    google_meet: "google_meet",
+    zoom: "zoom",
+    teams: "teams",
+    novixa: "other",
+    other: "other",
+  };
+
   const payload = await api.post<Record<string, unknown>>(
     withOrg(API_ENDPOINTS.meetings.create, organizationId),
     {
       title: input.title,
       starts_at: input.startsAt,
-      provider: input.provider,
+      ends_at: endsAt,
+      provider: providerMap[input.provider] || "other",
       organization_id: organizationId,
+      description: input.description ?? "",
     },
   );
-  return mapMeeting(payload);
+  const meeting = mapMeeting(payload);
+  // Auto-generate join link when the API created the meeting without one.
+  if (!meeting.joinUrl && meeting.id) {
+    try {
+      const linked = await api.post<Record<string, unknown>>(
+        API_ENDPOINTS.meetings.createLink(meeting.id),
+        {},
+      );
+      return mapMeeting(linked);
+    } catch {
+      return meeting;
+    }
+  }
+  return meeting;
 }
 
 export async function fetchCalendarConnections(
@@ -188,7 +219,7 @@ export async function fetchCalendarConnections(
 export async function connectCalendar(
   provider: "google" | "microsoft",
   organizationId?: string | null,
-): Promise<CalendarConnection> {
+): Promise<CalendarConnection & { oauthUrl?: string }> {
   if (isDemoMode()) {
     demoConnections = demoConnections.map((c) =>
       c.provider === provider
@@ -207,7 +238,12 @@ export async function connectCalendar(
     withOrg(API_ENDPOINTS.meetings.connect(provider), organizationId),
     { organization_id: organizationId },
   );
-  return mapConnection(payload);
+  const mapped = mapConnection(payload);
+  return {
+    ...mapped,
+    oauthUrl: pickString(payload, "oauth_url", "oauthUrl") || undefined,
+    connected: mapped.connected || Boolean(payload.stub) || Boolean(payload.oauth_url),
+  };
 }
 
 export async function fetchBookingLinks(organizationId?: string | null): Promise<BookingLink[]> {

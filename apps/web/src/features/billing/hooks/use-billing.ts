@@ -78,14 +78,17 @@ export function useUsageMeters() {
 
 export function useCheckout() {
   const orgId = useOrgId();
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CheckoutInput) => createCheckout(input, orgId),
     onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: billingKeys.subscription(orgId) });
+      void queryClient.invalidateQueries({ queryKey: billingKeys.plans(orgId) });
       if (result.url) {
         window.location.href = result.url;
-      } else {
-        toast.success("Checkout started");
+        return;
       }
+      toast.success("15-day unlimited trial started — save your card for auto-debit");
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });

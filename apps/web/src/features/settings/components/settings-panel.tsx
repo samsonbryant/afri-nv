@@ -15,6 +15,7 @@ import {
   updateProfileRequest,
   uploadAvatarRequest,
 } from "@/features/auth/api/auth-api";
+import { SecuritySettings } from "@/features/auth/components/security-settings";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
 import { useSettingsStore } from "@/features/settings/stores/settings-store";
 import { useMounted } from "@/hooks/use-mounted";
@@ -56,10 +57,12 @@ export function SettingsPanel() {
     <div>
       <PageHeader
         title="Settings"
-        description="Manage your profile, business details, password, appearance, and notifications."
+        description="Manage your profile, security (2FA), business details, appearance, and notifications."
       />
 
       <div className="mx-auto max-w-2xl space-y-8">
+        <SecuritySettings />
+
         <section className="border-border bg-card space-y-4 rounded-xl border p-6">
           <div>
             <h2 className="font-display text-lg font-semibold">Profile</h2>

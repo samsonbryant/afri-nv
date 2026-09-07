@@ -14,6 +14,7 @@ function mapRunToAutomation(raw: Record<string, unknown>): Automation {
     createdAt: pickIso(raw, "created_at", "createdAt"),
     updatedAt: pickIso(raw, "updated_at", "updatedAt", "finished_at", "created_at"),
     lastRunAt: pickIso(raw, "finished_at", "started_at", "created_at"),
+    workflowId: pickString(raw, "workflow_id", "workflowId") || undefined,
   };
 }
 

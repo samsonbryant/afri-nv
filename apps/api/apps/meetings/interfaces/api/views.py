@@ -35,7 +35,10 @@ def _require_org(request: Request) -> UUID:
     org_id = request.query_params.get("organization_id")
     if not org_id:
         raise ValidationError("organization_id is required.")
-    return UUID(org_id)
+    try:
+        return UUID(str(org_id))
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("organization_id must be a valid UUID.") from exc
 
 
 class MeetingListCreateView(APIView):
@@ -52,7 +55,17 @@ class MeetingListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         data = dict(serializer.validated_data)
         org_id = data.pop("organization_id")
+        provider = str(data.get("provider") or "other")
+        if provider in {"meet", "google"}:
+            data["provider"] = "google_meet"
+        elif provider == "novixa":
+            data["provider"] = "other"
         item = get_meeting_service().create_meeting(request.user.id, org_id, data)
+        if not getattr(item, "meeting_url", None):
+            try:
+                item = get_meeting_service().create_meeting_link(request.user.id, item.id)
+            except Exception:
+                pass
         return Response(MeetingSerializer(item).data, status=status.HTTP_201_CREATED)
 
 

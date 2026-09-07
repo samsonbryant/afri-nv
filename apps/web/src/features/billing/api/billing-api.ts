@@ -423,6 +423,7 @@ export async function attachCard(
     payment_method_ref: input.paymentMethodRef,
     card_last4: input.cardLast4 ?? "",
     card_brand: input.cardBrand ?? "",
+    plan_code: input.planCode ?? "",
   });
   return mapSubscription(raw);
 }

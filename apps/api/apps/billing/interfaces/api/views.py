@@ -83,6 +83,7 @@ class AttachCardView(APIView):
             payment_method_ref=data["payment_method_ref"],
             card_last4=data.get("card_last4") or "",
             card_brand=data.get("card_brand") or "",
+            plan_code=data.get("plan_code") or None,
         )
         return Response(SubscriptionSerializer(sub).data)
 

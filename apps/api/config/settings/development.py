@@ -19,6 +19,10 @@ REST_FRAMEWORK = {
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
+# Process Celery tasks inline in local/dev so uploads & reports don't hang without a worker.
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
 # Relaxed security for local development
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False

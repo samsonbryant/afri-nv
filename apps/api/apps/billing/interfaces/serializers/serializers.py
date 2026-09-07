@@ -44,6 +44,7 @@ class AttachCardSerializer(serializers.Serializer):
     payment_method_ref = serializers.CharField(max_length=255)
     card_last4 = serializers.CharField(required=False, allow_blank=True, max_length=4, default="")
     card_brand = serializers.CharField(required=False, allow_blank=True, max_length=32, default="")
+    plan_code = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class PortalSerializer(serializers.Serializer):

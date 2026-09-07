@@ -87,6 +87,7 @@ export type Automation = {
   updatedAt: string;
   createdAt: string;
   lastRunAt?: string | null;
+  workflowId?: string;
 };
 
 export type DashboardStats = {

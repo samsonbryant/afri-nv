@@ -594,9 +594,11 @@ class BillingService:
         payment_method_ref: str,
         card_last4: str = "",
         card_brand: str = "",
+        plan_code: str | None = None,
     ) -> SubscriptionDTO:
         """Attach a card on file so the trial can auto-debit when it ends."""
         self._require_owner_or_admin(actor_id, organization_id)
+        self.seed_plans()
         sub = (
             Subscription.objects.filter(organization_id=organization_id)
             .exclude(status=Subscription.Status.CANCELLED)
@@ -605,7 +607,27 @@ class BillingService:
             .first()
         )
         if sub is None:
-            raise PlanNotFoundError("No active subscription to attach a card to.")
+            code = (plan_code or "starter").strip().lower()
+            try:
+                plan = Plan.objects.get(code=code, is_active=True)
+            except Plan.DoesNotExist:
+                plan = Plan.objects.filter(is_active=True).order_by("amount_cents").first()
+            if plan is None:
+                raise PlanNotFoundError("No plans available to start a trial.")
+            now = timezone.now()
+            trial_days = int(plan.trial_days or 15)
+            sub = Subscription.objects.create(
+                organization_id=organization_id,
+                plan=plan,
+                status=Subscription.Status.TRIALING if trial_days else Subscription.Status.ACTIVE,
+                dodo_subscription_id=f"card_{uuid4().hex[:12]}",
+                current_period_start=now,
+                current_period_end=now + timedelta(days=30),
+                trial_end=now + timedelta(days=trial_days) if trial_days else None,
+                payment_method="card",
+                auto_charge=True,
+            )
+            Organization.objects.filter(pk=organization_id).update(plan=plan.code)
         sub.payment_method = "card"
         sub.payment_method_ref = payment_method_ref.strip()
         sub.card_last4 = (card_last4 or "")[:4]

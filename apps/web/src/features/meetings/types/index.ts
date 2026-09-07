@@ -1,4 +1,4 @@
-export type MeetingProvider = "zoom" | "meet" | "teams";
+export type MeetingProvider = "zoom" | "meet" | "teams" | "novixa";
 
 export type MeetingStatus = "scheduled" | "completed" | "cancelled";
 
@@ -22,6 +22,7 @@ export type CalendarConnection = {
   email?: string;
   connected: boolean;
   connectedAt?: string | null;
+  oauthUrl?: string;
 };
 
 export type BookingLink = {
@@ -42,6 +43,9 @@ export type ReminderSettings = {
 export type CreateMeetingInput = {
   title: string;
   startsAt: string;
+  endsAt?: string;
+  durationMinutes?: number;
+  description?: string;
   provider: MeetingProvider;
 };
 
