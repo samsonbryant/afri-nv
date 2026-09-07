@@ -14,7 +14,10 @@
       "source.organizeImports": "explicit"
     }
   },
-  "python.defaultInterpreterPath": "apps/api/.venv/bin/python",
+  "python.defaultInterpreterPath": "${workspaceFolder}/apps/api/.venv/bin/python",
+  "python.analysis.extraPaths": ["${workspaceFolder}/apps/api"],
+  "basedpyright.analysis.extraPaths": ["${workspaceFolder}/apps/api"],
+  "basedpyright.analysis.diagnosticMode": "workspace",
   "eslint.workingDirectories": ["apps/web"],
   "tailwindCSS.experimental.classRegex": [
     ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],

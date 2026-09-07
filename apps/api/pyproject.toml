@@ -83,6 +83,18 @@ ignore_missing_imports = true
 [tool.django-stubs]
 django_settings_module = "config.settings"
 
+[tool.basedpyright]
+pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
+extraPaths = ["."]
+typeCheckingMode = "basic"
+reportMissingImports = "warning"
+reportArgumentType = "none"
+reportAttributeAccessIssue = "none"
+reportOptionalMemberAccess = "none"
+reportConstantRedefinition = "none"
+
 [tool.coverage.run]
 source = ["apps", "config", "infrastructure"]
 omit = [

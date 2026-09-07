@@ -1,0 +1,19 @@
+{
+  "venvPath": "apps/api",
+  "venv": ".venv",
+  "pythonVersion": "3.12",
+  "extraPaths": ["apps/api"],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportArgumentType": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportOptionalMemberAccess": "none",
+  "reportConstantRedefinition": "none",
+  "executionEnvironments": [
+    {
+      "root": "apps/api",
+      "pythonVersion": "3.12",
+      "extraPaths": ["apps/api"]
+    }
+  ]
+}
