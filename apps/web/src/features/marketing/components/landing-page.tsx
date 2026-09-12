@@ -187,8 +187,8 @@ export function LandingPage() {
               Plans that grow with you
             </h2>
             <p className="text-muted-foreground mt-3 text-balance">
-              Start a 15-day unlimited trial with a card on file — we auto-charge your plan when the
-              trial ends. Mobile money remains available as an interim option.
+              Start a 15-day trial with up to 100 AI requests. Add a card at signup; billing starts
+              automatically when the trial ends. Mobile money is available in supported markets.
             </p>
           </div>
 

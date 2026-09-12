@@ -6,6 +6,7 @@ from .base import *  # noqa: F403
 
 DEBUG = False
 SECRET_KEY = "test-secret-key-not-for-production"
+BILLING_STUB_ENABLED = True
 
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",

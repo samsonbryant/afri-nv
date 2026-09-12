@@ -88,7 +88,7 @@ export function useCheckout() {
         window.location.href = result.url;
         return;
       }
-      toast.success("15-day unlimited trial started — save your card for auto-debit");
+      toast.success("15-day trial started — save your card for auto-debit");
     },
     onError: (error) => toast.error(getErrorMessage(error)),
   });

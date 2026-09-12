@@ -74,7 +74,7 @@ python manage.py bootstrap_admin
 # or: python manage.py createsuperuser
 ```
 
-`bootstrap_admin` creates staff superuser `admin@novixa.ai` / `NovixaAdmin2026!` (override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`). Change the password after first login.
+`bootstrap_admin` creates or updates the staff superuser configured with `ADMIN_EMAIL`. A strong `ADMIN_PASSWORD` is required; the command has no default password.
 
 `createsuperuser` also sets `is_staff=True`. Admin UI (`/admin` and `/api/v1/admin/*`) requires Django staff — a normal registered user gets **403**. To promote an existing account:
 

@@ -36,21 +36,21 @@ DEFAULT_PLANS = [
         "name": "Starter",
         "amount_cents": 2900,
         "trial_days": 15,
-        "features": {"seats": 5, "ai_tokens": -1, "unlimited_trial": True},
+        "features": {"seats": 5, "ai_requests": 100, "trial_days": 15},
     },
     {
         "code": "pro",
         "name": "Pro",
         "amount_cents": 9900,
         "trial_days": 15,
-        "features": {"seats": 25, "ai_tokens": -1, "unlimited_trial": True},
+        "features": {"seats": 25, "ai_requests": 100, "trial_days": 15},
     },
     {
         "code": "business",
         "name": "Business",
         "amount_cents": 29900,
         "trial_days": 15,
-        "features": {"seats": 100, "ai_tokens": -1, "unlimited_trial": True},
+        "features": {"seats": 100, "ai_requests": 100, "trial_days": 15},
     },
 ]
 

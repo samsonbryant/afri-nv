@@ -323,7 +323,7 @@ After migrate on a fresh API:
 
 ```bash
 python manage.py bootstrap_admin
-# default: admin@novixa.ai / NovixaAdmin2026!  (override ADMIN_EMAIL / ADMIN_PASSWORD)
+# Set ADMIN_EMAIL and a strong ADMIN_PASSWORD before running bootstrap_admin.
 ```
 
 Change the password immediately. Platform admin routes require `is_staff=True`.
