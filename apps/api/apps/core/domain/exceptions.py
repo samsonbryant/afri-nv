@@ -38,3 +38,8 @@ class ConflictError(DomainError):
 class AuthenticationError(DomainError):
     default_message = "Authentication failed."
     code = "authentication_error"
+
+
+class ServiceUnavailableError(DomainError):
+    default_message = "The service is temporarily unavailable."
+    code = "service_unavailable"
