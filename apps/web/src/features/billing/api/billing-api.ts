@@ -1,7 +1,7 @@
-import { api } from "@/lib/api/client";
+import { api, getAccessToken } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/api/endpoints";
 import { pickIso, pickNumber, pickString, unwrapList, withOrg } from "@/lib/api/org";
-import { isDemoMode } from "@/lib/constants";
+import { API_URL, isDemoMode } from "@/lib/constants";
 import type {
   AttachCardInput,
   BillingPlan,
@@ -212,6 +212,33 @@ export async function fetchInvoices(organizationId?: string | null): Promise<Inv
   } catch {
     return [];
   }
+}
+
+export async function openInvoiceDocument(
+  invoiceId: string,
+  kind: "invoice" | "receipt",
+  download = false,
+): Promise<void> {
+  const previewWindow = !download ? window.open("", "_blank", "noopener,noreferrer") : null;
+  const base = API_URL.replace(/\/$/, "");
+  const response = await fetch(
+    `${base}/billing/invoices/${encodeURIComponent(invoiceId)}/${kind}/${download ? "?download=1" : ""}`,
+    { headers: { Authorization: `Bearer ${getAccessToken() ?? ""}` } },
+  );
+  if (!response.ok) {
+    previewWindow?.close();
+    throw new Error(`Unable to open ${kind}.`);
+  }
+  const objectUrl = URL.createObjectURL(await response.blob());
+  if (download) {
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = `${kind}-${invoiceId}.pdf`;
+    anchor.click();
+  } else if (previewWindow) {
+    previewWindow.location.href = objectUrl;
+  }
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
 
 export async function fetchUsage(organizationId?: string | null): Promise<UsageMeter[]> {

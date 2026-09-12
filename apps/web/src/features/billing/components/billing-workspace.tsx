@@ -37,6 +37,7 @@ import {
   useUsageMeters,
 } from "@/features/billing/hooks/use-billing";
 import type { BillingPlan, MobileMoneyProvider } from "@/features/billing/types";
+import { openInvoiceDocument } from "@/features/billing/api/billing-api";
 import { cn } from "@/lib/utils/cn";
 import { formatDate } from "@/lib/utils/format";
 import { toast } from "sonner";
@@ -440,16 +441,34 @@ export function BillingWorkspace() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        {invoice.hostedUrl ? (
-                          <Button asChild size="sm" variant="outline">
-                            <a href={invoice.hostedUrl}>Invoice</a>
-                          </Button>
-                        ) : null}
-                        {invoice.receiptUrl ? (
-                          <Button asChild size="sm" variant="outline">
-                            <a href={invoice.receiptUrl}>Receipt</a>
-                          </Button>
-                        ) : null}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void openInvoiceDocument(invoice.id, "invoice")}
+                        >
+                          Preview invoice
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void openInvoiceDocument(invoice.id, "receipt")}
+                        >
+                          Preview receipt
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => void openInvoiceDocument(invoice.id, "invoice", true)}
+                        >
+                          Download invoice
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => void openInvoiceDocument(invoice.id, "receipt", true)}
+                        >
+                          Download receipt
+                        </Button>
                       </div>
                       {invoice.emailedTo ? (
                         <span className="text-muted-foreground mt-1 block text-xs">
