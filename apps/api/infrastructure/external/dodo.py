@@ -34,6 +34,7 @@ class DodoPaymentsClient:
     def __init__(self, api_key: str | None = None) -> None:
         self.api_key = api_key if api_key is not None else getattr(settings, "DODO_API_KEY", "")
         self.is_stub = not bool(self.api_key)
+        self.stub_enabled = bool(getattr(settings, "BILLING_STUB_ENABLED", settings.DEBUG))
 
     def create_checkout(
         self,
@@ -48,6 +49,8 @@ class DodoPaymentsClient:
         customer_email: str = "",
         customer_name: str = "",
     ) -> CheckoutSession:
+        if self.is_stub and not self.stub_enabled:
+            raise RuntimeError("DODO_API_KEY is required when billing stubs are disabled.")
         session_id = f"dodo_cs_{uuid4().hex[:16]}"
         frontend = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
         url = f"{frontend}/billing/checkout/{session_id}?plan={plan_code}&org={organization_id}" + (
@@ -104,6 +107,8 @@ class DodoPaymentsClient:
     ) -> PortalSession:
         frontend = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
         if self.is_stub:
+            if not self.stub_enabled:
+                raise RuntimeError("DODO_API_KEY is required when billing stubs are disabled.")
             return PortalSession(portal_url=f"{frontend}/billing/portal/{organization_id}")
         return PortalSession(
             portal_url=f"https://portal.dodopayments.com/{customer_id or organization_id}"
@@ -118,7 +123,7 @@ class DodoPaymentsClient:
     ) -> bool:
         secret = getattr(settings, "DODO_WEBHOOK_SECRET", "")
         if not secret:
-            return self.is_stub
+            return self.is_stub and self.stub_enabled
         if not signature or not webhook_id or not webhook_timestamp:
             return False
         try:
@@ -165,6 +170,8 @@ class DodoPaymentsClient:
         description: str = "",
     ) -> dict[str, Any]:
         """Charge a saved card after trial. Stub succeeds when DODO_API_KEY is unset."""
+        if self.is_stub and not self.stub_enabled:
+            raise RuntimeError("DODO_API_KEY is required when billing stubs are disabled.")
         charge_id = f"dodo_ch_{uuid4().hex[:14]}"
         frontend = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
         return {

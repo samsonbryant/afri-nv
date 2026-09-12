@@ -7,6 +7,9 @@ const footerLinks = [
   { href: "/#services", label: "Services" },
   { href: "/#pricing", label: "Pricing" },
   { href: ROUTES.about, label: "About" },
+  { href: "/privacy", label: "Privacy" },
+  { href: "/terms", label: "Terms" },
+  { href: "/refund-policy", label: "Refunds" },
   { href: ROUTES.login, label: "Sign in" },
   { href: ROUTES.register, label: "Start free" },
 ] as const;

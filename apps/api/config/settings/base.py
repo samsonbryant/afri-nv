@@ -308,6 +308,7 @@ AI_MAX_TOKENS = env.int("AI_MAX_TOKENS", default=1024)
 # Free org plan: monthly AI request cap and short completion budget
 FREE_AI_REQUEST_LIMIT = env.int("FREE_AI_REQUEST_LIMIT", default=5)
 FREE_AI_MAX_TOKENS = env.int("FREE_AI_MAX_TOKENS", default=180)
+TRIAL_AI_REQUEST_LIMIT = env.int("TRIAL_AI_REQUEST_LIMIT", default=100)
 EMBEDDING_MODEL = env("EMBEDDING_MODEL", default="text-embedding-3-small")
 EMBEDDING_DIMENSIONS = env.int("EMBEDDING_DIMENSIONS", default=1536)
 
@@ -399,6 +400,7 @@ if MANUAL_PAYMENT_CURRENCY != "usd":
 DODO_API_KEY = env("DODO_API_KEY", default="")
 DODO_WEBHOOK_SECRET = env("DODO_WEBHOOK_SECRET", default="")
 DODO_ENVIRONMENT = env("DODO_ENVIRONMENT", default="live_mode")
+BILLING_STUB_ENABLED = env.bool("BILLING_STUB_ENABLED", default=DEBUG)
 DODO_PRODUCT_STARTER = env("DODO_PRODUCT_STARTER", default="")
 DODO_PRODUCT_GROWTH = env("DODO_PRODUCT_GROWTH", default="")
 DODO_PRODUCT_SCALE = env("DODO_PRODUCT_SCALE", default="")

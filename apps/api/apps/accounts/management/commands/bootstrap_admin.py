@@ -10,10 +10,7 @@ from django.utils import timezone
 
 
 class Command(BaseCommand):
-    help = (
-        "Create or update admin@novixa.ai (or ADMIN_EMAIL) as a staff superuser. "
-        "Password defaults to NovixaAdmin2026! unless ADMIN_PASSWORD is set."
-    )
+    help = "Create or update the configured staff superuser."
 
     def add_arguments(self, parser) -> None:
         parser.add_argument(
@@ -23,13 +20,19 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             "--password",
-            default=os.environ.get("ADMIN_PASSWORD", "NovixaAdmin2026!"),
-            help="Admin password (default: ADMIN_PASSWORD or NovixaAdmin2026!)",
+            default=os.environ.get("ADMIN_PASSWORD"),
+            help="Admin password (required via --password or ADMIN_PASSWORD)",
         )
 
     def handle(self, *args, **options) -> None:
         email = str(options["email"]).strip().lower()
-        password = str(options["password"])
+        raw_password = options.get("password")
+        if not raw_password:
+            self.stderr.write(
+                self.style.ERROR("ADMIN_PASSWORD or --password is required; no default is used.")
+            )
+            return
+        password = str(raw_password)
         User = get_user_model()
 
         user, created = User.objects.get_or_create(
@@ -52,6 +55,3 @@ class Command(BaseCommand):
 
         action = "Created" if created else "Updated"
         self.stdout.write(self.style.SUCCESS(f"{action} staff admin: {email}"))
-        self.stdout.write(
-            self.style.WARNING("Change this password after first login in production.")
-        )

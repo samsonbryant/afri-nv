@@ -105,9 +105,9 @@ export const NOVIXA_PLANS = [
     price: "$0",
     cadence: "for 15 days",
     description:
-      "Unlimited AI and full modules for 15 days. Add a card at signup — we auto-charge your plan when the trial ends.",
+      "Explore every core module for 15 days with up to 100 AI requests. Add a card at signup; billing starts automatically when the trial ends.",
     features: [
-      "Unlimited AI during trial",
+      "Up to 100 AI requests during trial",
       "Card required (auto-debit after trial)",
       "All core modules unlocked",
     ],
@@ -148,11 +148,4 @@ export const FOUNDER = {
     "With Novixa, his focus is an AI business operating system: one place to run assistants, workflows, knowledge, CRM, and customer operations with clear paths to subscribe and scale.",
     "Based in Liberia, Samson is building Novixa for African operators first—local payment rails, clear product value, and software that helps teams move faster every day.",
   ],
-} as const;
-
-/** Documented bootstrap admin for deployments (change after first login in production). */
-export const ADMIN_BOOTSTRAP = {
-  email: "admin@novixa.ai",
-  password: "NovixaAdmin2026!",
-  note: "Staff admin — change this password after first sign-in.",
 } as const;

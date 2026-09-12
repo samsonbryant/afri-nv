@@ -33,6 +33,10 @@ def free_ai_max_tokens() -> int:
     return max(64, int(getattr(settings, "FREE_AI_MAX_TOKENS", 180) or 180))
 
 
+def trial_ai_request_limit() -> int:
+    return max(1, int(getattr(settings, "TRIAL_AI_REQUEST_LIMIT", 100) or 100))
+
+
 def upgrade_url() -> str:
     base = (getattr(settings, "FRONTEND_URL", "") or "http://localhost:3000").rstrip("/")
     return f"{base}/billing"
@@ -116,13 +120,14 @@ def evaluate_free_tier(organization_id: UUID | str | None) -> FreeTierDecision:
 
     on_trial = active_trial(organization_id)
     if on_trial:
-        # 15-day unlimited trial — no AI caps while TRIALING and trial_end is in the future.
+        trial_limit = trial_ai_request_limit()
+        trial_used = count_ai_requests(organization_id, since=_month_start())
         return FreeTierDecision(
             is_free=False,
-            allowed=True,
-            used=0,
-            limit=0,
-            remaining=0,
+            allowed=trial_used < trial_limit,
+            used=trial_used,
+            limit=trial_limit,
+            remaining=max(0, trial_limit - trial_used),
             upgrade_url=url,
             max_tokens=paid_max,
             on_trial=True,
@@ -148,7 +153,7 @@ def upgrade_footer(*, remaining: int | None = None, blocked: bool = False) -> st
     if blocked:
         return (
             f"\n\n---\n"
-            f"**Free plan limit reached.** Start a 15-day unlimited trial with a card on file: "
+            f"**Free plan limit reached.** Start a 15-day trial with a card on file: "
             f"[{url}]({url})"
         )
     left = (
@@ -156,7 +161,7 @@ def upgrade_footer(*, remaining: int | None = None, blocked: bool = False) -> st
         if remaining is not None
         else ""
     )
-    return f"\n\n---\n*Free plan{left}. Start a 15-day unlimited trial (card required):* [{url}]({url})"
+    return f"\n\n---\n*Free plan{left}. Start a 15-day trial (card required):* [{url}]({url})"
 
 
 def blocked_upgrade_reply(user_content: str = "") -> str:
@@ -165,7 +170,7 @@ def blocked_upgrade_reply(user_content: str = "") -> str:
     return (
         f"**Free plan limit reached.** You've used your free AI requests for this month."
         f"{asked}\n\n"
-        f"Start a **15-day unlimited trial** (add a card — we auto-charge when the trial ends):\n"
+        f"Start a **15-day trial** (add a card — we auto-charge when the trial ends):\n"
         f"{upgrade_url()}"
     )
 
