@@ -33,24 +33,24 @@ from infrastructure.external.dodo import DodoPaymentsClient
 DEFAULT_PLANS = [
     {
         "code": "starter",
-        "name": "Starter",
-        "amount_cents": 2900,
-        "trial_days": 15,
-        "features": {"seats": 5, "ai_requests": 100, "trial_days": 15},
+        "name": "Solo",
+        "amount_cents": 1900,
+        "trial_days": 14,
+        "features": {"seats": 1, "ai_requests": 500, "trial_days": 14},
     },
     {
         "code": "pro",
-        "name": "Pro",
-        "amount_cents": 9900,
-        "trial_days": 15,
-        "features": {"seats": 25, "ai_requests": 100, "trial_days": 15},
+        "name": "Business",
+        "amount_cents": 4900,
+        "trial_days": 14,
+        "features": {"seats": 5, "ai_requests": 3000, "trial_days": 14},
     },
     {
         "code": "business",
-        "name": "Business",
-        "amount_cents": 29900,
-        "trial_days": 15,
-        "features": {"seats": 100, "ai_requests": 100, "trial_days": 15},
+        "name": "Agency",
+        "amount_cents": 9900,
+        "trial_days": 14,
+        "features": {"seats": 15, "ai_requests": 10000, "trial_days": 14},
     },
 ]
 
@@ -73,7 +73,7 @@ class BillingService:
                     "amount_cents": item["amount_cents"],
                     "currency": "usd",
                     "interval": Plan.Interval.MONTH,
-                    "trial_days": int(item.get("trial_days", 15)),
+                    "trial_days": int(item.get("trial_days", 14)),
                     "features": item["features"],
                     "is_active": True,
                 },
@@ -139,7 +139,7 @@ class BillingService:
             customer_name=actor.get_full_name() if actor else "",
         )
         now = timezone.now()
-        trial_days = int(plan.trial_days or 15)
+        trial_days = int(plan.trial_days or 14)
         # Cancel prior open subscriptions for this org.
         Subscription.objects.filter(organization_id=organization_id).exclude(
             status=Subscription.Status.CANCELLED
@@ -685,7 +685,7 @@ class BillingService:
             if plan is None:
                 raise PlanNotFoundError("No plans available to start a trial.")
             now = timezone.now()
-            trial_days = int(plan.trial_days or 15)
+            trial_days = int(plan.trial_days or 14)
             sub = Subscription.objects.create(
                 organization_id=organization_id,
                 plan=plan,

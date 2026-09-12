@@ -134,7 +134,7 @@ export function Sidebar() {
 
       {!sidebarCollapsed ? (
         <div className="border-sidebar-border border-t p-4">
-          <p className="text-muted-foreground text-xs">AI Business Operating System</p>
+          <p className="text-muted-foreground text-xs">AI Client Management</p>
         </div>
       ) : null}
     </aside>

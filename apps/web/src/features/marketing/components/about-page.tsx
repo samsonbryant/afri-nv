@@ -44,8 +44,8 @@ export function AboutPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, delay: 0.16, ease: easeOut }}
             >
-              An AI business operating system built so founders and operators can run assistants,
-              automations, knowledge, and customer systems without stitching ten tools together.
+              An AI client-management platform built for freelancers, agencies, and service
+              businesses that want to win, serve, and retain more customers.
             </motion.p>
           </div>
         </section>
@@ -55,10 +55,9 @@ export function AboutPage() {
             <div>
               <h2 className="font-display text-3xl font-semibold tracking-tight">What we build</h2>
               <p className="text-muted-foreground mt-4 text-base leading-relaxed">
-                Novixa is designed for modern businesses that want AI that ships work—not demos.
-                Teams use Novixa to orchestrate day-to-day operations: chat with an assistant,
-                publish workflows, ground answers in company knowledge, manage CRM and support, and
-                subscribe to the capacity they need.
+                Novixa brings the customer journey into one practical workspace. Teams can capture
+                leads, create proposals and emails, schedule follow-ups, answer questions from
+                business knowledge, support customers, and track invoices and payments.
               </p>
               <p className="text-muted-foreground mt-4 text-base leading-relaxed">
                 Payment for paid plans is built for local markets with MTN Mobile Money and Orange

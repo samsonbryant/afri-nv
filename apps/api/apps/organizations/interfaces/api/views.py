@@ -117,7 +117,7 @@ class CompleteOnboardingView(APIView):
     def post(self, request: Request, org_id: UUID) -> Response:
         state = _bootstrap_payload(request.user.id, org_id)
         if not state.get("entitlement_active") or not state.get("payment_method_ready"):
-            raise ValidationError("Start the 15-day trial and add a card before continuing.")
+            raise ValidationError("Start the 14-day trial and add a card before continuing.")
         org = get_organization_service().get(request.user.id, org_id)
         missing = [
             label

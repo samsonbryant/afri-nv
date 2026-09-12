@@ -158,7 +158,7 @@ envVarGroups:
         value: live_mode
       - key: DODO_PRODUCT_STARTER
         sync: false
-      - key: DODO_PRODUCT_GROWTH
+      - key: DODO_PRODUCT_PRO
         sync: false
-      - key: DODO_PRODUCT_SCALE
+      - key: DODO_PRODUCT_BUSINESS
         sync: false

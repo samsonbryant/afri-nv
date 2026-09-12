@@ -402,8 +402,8 @@ DODO_WEBHOOK_SECRET = env("DODO_WEBHOOK_SECRET", default="")
 DODO_ENVIRONMENT = env("DODO_ENVIRONMENT", default="live_mode")
 BILLING_STUB_ENABLED = env.bool("BILLING_STUB_ENABLED", default=DEBUG)
 DODO_PRODUCT_STARTER = env("DODO_PRODUCT_STARTER", default="")
-DODO_PRODUCT_GROWTH = env("DODO_PRODUCT_GROWTH", default="")
-DODO_PRODUCT_SCALE = env("DODO_PRODUCT_SCALE", default="")
+DODO_PRODUCT_PRO = env("DODO_PRODUCT_PRO", default=env("DODO_PRODUCT_GROWTH", default=""))
+DODO_PRODUCT_BUSINESS = env("DODO_PRODUCT_BUSINESS", default=env("DODO_PRODUCT_SCALE", default=""))
 
 # Meta Graph / WhatsApp Cloud — empty token keeps verified-local stub connect/publish.
 META_GRAPH_ACCESS_TOKEN = env("META_GRAPH_ACCESS_TOKEN", default="")
