@@ -48,3 +48,31 @@ def test_billing_checkout_translates_provider_failure(monkeypatch: pytest.Monkey
 
     with pytest.raises(PaymentProviderUnavailableError):
         service.checkout(user.id, org.id, "starter")
+
+
+@pytest.mark.django_db
+@pytest.mark.unit
+def test_approved_mobile_payment_creates_payment_ready_subscription() -> None:
+    user, _ = get_auth_service().register(
+        RegisterUserDTO(email="mobile-payment@novixa.ai", password="securepass123")
+    )
+    org = get_organization_service().create(
+        user.id, CreateOrganizationDTO(name="Mobile Payment", slug="mobile-payment")
+    )
+    service = get_billing_service()
+    payment = service.create_manual_payment(
+        user.id,
+        org.id,
+        "starter",
+        "mtn_momo",
+        payer_phone="0888123456",
+        transaction_id="TXN-123456",
+    )
+
+    service.approve_manual_payment(user.id, payment["id"])
+
+    subscription = service.get_subscription(user.id, org.id)
+    assert subscription is not None
+    assert subscription.status == "active"
+    assert subscription.payment_method == "mtn_momo"
+    assert subscription.auto_charge is False
