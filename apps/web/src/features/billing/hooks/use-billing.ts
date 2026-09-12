@@ -116,12 +116,13 @@ export function useManualPaymentInstructions() {
   });
 }
 
-export function useManualPayments() {
+export function useManualPayments(pollForApproval = false) {
   const orgId = useOrgId();
   return useQuery({
     queryKey: billingKeys.manualPayments(orgId),
     queryFn: () => fetchManualPayments(orgId),
     enabled: Boolean(orgId),
+    refetchInterval: pollForApproval ? 5000 : false,
   });
 }
 

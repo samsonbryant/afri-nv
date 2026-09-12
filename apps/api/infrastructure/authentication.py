@@ -63,9 +63,14 @@ class OnboardingJWTAuthentication(JWTAuthentication):
         )
         payment_ready = bool(
             subscription
-            and subscription.payment_method == "card"
             and subscription.payment_method_ref
-            and subscription.auto_charge
+            and (
+                (subscription.payment_method == "card" and subscription.auto_charge)
+                or (
+                    subscription.status == Subscription.Status.ACTIVE
+                    and subscription.payment_method in {"mtn_momo", "orange_money"}
+                )
+            )
         )
         if not entitled or not payment_ready:
             self._deny("trial")

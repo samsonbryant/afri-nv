@@ -66,9 +66,14 @@ def _bootstrap_payload(user_id: UUID, org_id: UUID | None = None) -> dict:
     )
     payment_ready = bool(
         subscription
-        and subscription.payment_method == "card"
         and subscription.payment_method_ref
-        and subscription.auto_charge
+        and (
+            (subscription.payment_method == "card" and subscription.auto_charge)
+            or (
+                subscription.status == Subscription.Status.ACTIVE
+                and subscription.payment_method in {"mtn_momo", "orange_money"}
+            )
+        )
     )
     required_profile = bool(org.name and org.industry and org.description and org.logo_url)
     profile_complete = bool(org.onboarding_completed_at or required_profile)
@@ -117,7 +122,7 @@ class CompleteOnboardingView(APIView):
     def post(self, request: Request, org_id: UUID) -> Response:
         state = _bootstrap_payload(request.user.id, org_id)
         if not state.get("entitlement_active") or not state.get("payment_method_ready"):
-            raise ValidationError("Start the 14-day trial and add a card before continuing.")
+            raise ValidationError("Complete card or mobile-money payment before continuing.")
         org = get_organization_service().get(request.user.id, org_id)
         missing = [
             label

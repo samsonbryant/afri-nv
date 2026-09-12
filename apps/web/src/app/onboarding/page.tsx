@@ -3,11 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Building2, Check, CreditCard, Loader2, Upload } from "lucide-react";
+import { Building2, Check, CreditCard, Loader2, Smartphone, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { AuthGuard } from "@/features/auth/components/auth-guard";
 import { useAuthStore } from "@/features/auth/stores/auth-store";
-import { useCheckout, usePlans } from "@/features/billing/hooks/use-billing";
+import {
+  useCheckout,
+  useCreateManualPayment,
+  useManualPaymentInstructions,
+  useManualPayments,
+  usePlans,
+} from "@/features/billing/hooks/use-billing";
+import type { BillingPlan, MobileMoneyProvider } from "@/features/billing/types";
 import {
   completeOnboardingRequest,
   fetchBootstrapState,
@@ -17,6 +24,14 @@ import { organizationKeys } from "@/features/organizations/hooks/use-organizatio
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getErrorMessage } from "@/lib/api/errors";
 import { ROUTES } from "@/lib/constants";
 
@@ -30,6 +45,14 @@ function OnboardingFlow() {
   const setOrganization = useAuthStore((state) => state.setOrganization);
   const { data: plans = [], isLoading: plansLoading } = usePlans();
   const checkout = useCheckout();
+  const { data: instructions } = useManualPaymentInstructions();
+  const { data: manualPayments = [] } = useManualPayments(true);
+  const createManualPayment = useCreateManualPayment();
+  const [mobilePlan, setMobilePlan] = useState<BillingPlan | null>(null);
+  const [provider, setProvider] = useState<MobileMoneyProvider>("mtn_momo");
+  const [payerPhone, setPayerPhone] = useState("");
+  const [payerName, setPayerName] = useState("");
+  const [transactionId, setTransactionId] = useState("");
   const [step, setStep] = useState<Step>(search.get("step") === "profile" ? "profile" : "trial");
   const [checking, setChecking] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -77,6 +100,29 @@ function OnboardingFlow() {
   }, [logo]);
 
   const availablePlans = useMemo(() => plans.filter((plan) => plan.id !== "enterprise"), [plans]);
+  const selectedProvider = useMemo(
+    () => instructions?.providers.find((item) => item.id === provider),
+    [instructions, provider],
+  );
+  const pendingPayment = manualPayments.find(
+    (payment) => payment.status === "pending" || payment.status === "submitted",
+  );
+
+  useEffect(() => {
+    if (step !== "trial" || !manualPayments.some((payment) => payment.status === "approved")) {
+      return;
+    }
+    toast.success("Payment approved — continue setting up your business");
+    setStep("profile");
+  }, [manualPayments, step]);
+
+  function openMobilePayment(plan: BillingPlan) {
+    setMobilePlan(plan);
+    setProvider("mtn_momo");
+    setPayerPhone("");
+    setPayerName("");
+    setTransactionId("");
+  }
 
   function updateField(name: keyof typeof form, value: string) {
     setForm((current) => ({ ...current, [name]: value }));
@@ -175,8 +221,8 @@ function OnboardingFlow() {
             <div>
               <h2 className="font-display text-xl font-semibold">Choose your plan</h2>
               <p className="text-muted-foreground text-sm">
-                Your card is saved for automatic billing after 15 free days. Cancel before the trial
-                ends to avoid a charge.
+                Pay by card, MTN MoMo, or Orange Money. Mobile-money access starts after an admin
+                verifies the transfer.
               </p>
             </div>
           </div>
@@ -204,17 +250,42 @@ function OnboardingFlow() {
                       <li key={feature}>• {feature}</li>
                     ))}
                   </ul>
-                  <Button
-                    className="w-full"
-                    disabled={checkout.isPending}
-                    onClick={() => checkout.mutate({ planId: plan.id })}
-                  >
-                    {checkout.isPending ? "Opening checkout…" : "Start free trial"}
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      className="w-full"
+                      disabled={checkout.isPending}
+                      onClick={() =>
+                        checkout.mutate(
+                          { planId: plan.id },
+                          { onError: () => openMobilePayment(plan) },
+                        )
+                      }
+                    >
+                      {checkout.isPending ? "Opening checkout…" : "Pay with card"}
+                    </Button>
+                    <Button
+                      className="w-full"
+                      type="button"
+                      variant="outline"
+                      onClick={() => openMobilePayment(plan)}
+                    >
+                      <Smartphone className="mr-2 h-4 w-4" />
+                      Pay with mobile money
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
+          {pendingPayment ? (
+            <div className="border-border bg-muted/40 mt-5 rounded-xl border p-4 text-sm">
+              <p className="font-medium">Payment submitted — awaiting admin approval</p>
+              <p className="text-muted-foreground mt-1">
+                Reference {pendingPayment.reference}. This page checks automatically every 5 seconds
+                and will continue when your payment is approved.
+              </p>
+            </div>
+          ) : null}
         </section>
       ) : (
         <section className="border-border bg-card rounded-2xl border p-6">
@@ -342,6 +413,100 @@ function OnboardingFlow() {
           </Button>
         </section>
       )}
+
+      <Dialog open={Boolean(mobilePlan)} onOpenChange={(open) => !open && setMobilePlan(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Pay for {mobilePlan?.name}</DialogTitle>
+            <DialogDescription>
+              Send the exact amount, then submit the mobile-money transaction ID for approval.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm">
+              Amount due: <strong>${mobilePlan?.priceMonthly.toFixed(2)} USD</strong>
+            </p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={provider === "mtn_momo" ? "default" : "outline"}
+                onClick={() => setProvider("mtn_momo")}
+              >
+                MTN MoMo
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={provider === "orange_money" ? "default" : "outline"}
+                onClick={() => setProvider("orange_money")}
+              >
+                Orange Money
+              </Button>
+            </div>
+            <div className="border-border bg-muted/40 rounded-lg border p-3 text-sm">
+              <p>Merchant: {selectedProvider?.accountName || "Novixa"}</p>
+              <p>Number: {selectedProvider?.number || "Not configured"}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mobile-phone">Payer phone number</Label>
+              <Input
+                id="mobile-phone"
+                value={payerPhone}
+                onChange={(event) => setPayerPhone(event.target.value)}
+                placeholder="Your MTN or Orange number"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mobile-name">Payer name</Label>
+              <Input
+                id="mobile-name"
+                value={payerName}
+                onChange={(event) => setPayerName(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="mobile-transaction">Transaction ID</Label>
+              <Input
+                id="mobile-transaction"
+                value={transactionId}
+                onChange={(event) => setTransactionId(event.target.value)}
+                placeholder="Receipt or transaction ID"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setMobilePlan(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={
+                !mobilePlan ||
+                !selectedProvider?.number ||
+                !payerPhone.trim() ||
+                !transactionId.trim() ||
+                createManualPayment.isPending
+              }
+              onClick={() => {
+                if (!mobilePlan) return;
+                createManualPayment.mutate(
+                  {
+                    planId: mobilePlan.id,
+                    provider,
+                    payerPhone: payerPhone.trim(),
+                    payerName: payerName.trim(),
+                    transactionId: transactionId.trim(),
+                  },
+                  { onSuccess: () => setMobilePlan(null) },
+                );
+              }}
+            >
+              {createManualPayment.isPending ? "Submitting…" : "Submit for approval"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

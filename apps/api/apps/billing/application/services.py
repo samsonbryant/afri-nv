@@ -512,6 +512,10 @@ class BillingService:
             current_period_start=now,
             current_period_end=now + timedelta(days=30),
             trial_end=None,
+            payment_method=req.provider,
+            payment_method_ref=req.transaction_id,
+            auto_charge=False,
+            last_charged_at=now,
         )
         Invoice.objects.create(
             organization_id=req.organization_id,
