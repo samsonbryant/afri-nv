@@ -33,6 +33,12 @@ export type Invoice = {
   status: "paid" | "open" | "void" | "uncollectible";
   issuedAt: string;
   pdfUrl?: string;
+  hostedUrl?: string;
+  receiptNumber?: string;
+  receiptUrl?: string;
+  paymentProvider?: string;
+  paymentReference?: string;
+  emailedTo?: string;
 };
 
 export type UsageMeter = {

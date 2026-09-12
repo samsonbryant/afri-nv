@@ -63,6 +63,12 @@ class InvoiceSerializer(serializers.Serializer):
     pdf_url = serializers.CharField()
     issued_at = serializers.DateTimeField(allow_null=True)
     paid_at = serializers.DateTimeField(allow_null=True)
+    receipt_number = serializers.CharField(allow_blank=True)
+    receipt_url = serializers.CharField(allow_blank=True)
+    payment_provider = serializers.CharField(allow_blank=True)
+    payment_reference = serializers.CharField(allow_blank=True)
+    emailed_to = serializers.EmailField(allow_blank=True)
+    emailed_at = serializers.DateTimeField(allow_null=True)
 
 
 class CouponValidateSerializer(serializers.Serializer):

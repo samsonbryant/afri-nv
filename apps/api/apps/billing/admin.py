@@ -29,8 +29,18 @@ class SubscriptionAdmin(admin.ModelAdmin):
 
 @admin.register(Invoice)
 class InvoiceAdmin(admin.ModelAdmin):
-    list_display = ("number", "organization", "amount_cents", "status", "issued_at")
+    list_display = (
+        "number",
+        "receipt_number",
+        "organization",
+        "amount_cents",
+        "payment_provider",
+        "status",
+        "emailed_to",
+        "issued_at",
+    )
     list_filter = ("status",)
+    search_fields = ("number", "receipt_number", "payment_reference", "emailed_to")
     autocomplete_fields = ("organization", "subscription")
 
 

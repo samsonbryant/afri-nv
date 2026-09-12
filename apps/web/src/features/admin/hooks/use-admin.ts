@@ -7,6 +7,7 @@ import {
   createAdminUser,
   fetchAdminAiUsage,
   fetchAdminAuditLogs,
+  fetchAdminInvoices,
   fetchAdminManualPayments,
   fetchAdminOrganizations,
   fetchAdminOverview,
@@ -28,6 +29,7 @@ export const adminKeys = {
   organizations: () => [...adminKeys.all, "organizations"] as const,
   subscriptions: () => [...adminKeys.all, "subscriptions"] as const,
   payments: () => [...adminKeys.all, "payments"] as const,
+  invoices: () => [...adminKeys.all, "invoices"] as const,
   aiUsage: () => [...adminKeys.all, "ai-usage"] as const,
   auditLogs: () => [...adminKeys.all, "audit-logs"] as const,
   settings: () => [...adminKeys.all, "settings"] as const,
@@ -72,6 +74,10 @@ export function useAdminPayments() {
   return useAdminQuery(adminKeys.payments(), fetchAdminPayments);
 }
 
+export function useAdminInvoices() {
+  return useAdminQuery(adminKeys.invoices(), fetchAdminInvoices);
+}
+
 export function useAdminAiUsage() {
   return useAdminQuery(adminKeys.aiUsage(), fetchAdminAiUsage);
 }
@@ -96,6 +102,7 @@ export function useApproveManualPayment() {
       void qc.invalidateQueries({ queryKey: adminKeys.manualPayments() });
       void qc.invalidateQueries({ queryKey: adminKeys.subscriptions() });
       void qc.invalidateQueries({ queryKey: adminKeys.overview() });
+      void qc.invalidateQueries({ queryKey: adminKeys.invoices() });
       toast.success("Payment approved — subscription activated");
     },
     onError: (error) => toast.error(getErrorMessage(error)),

@@ -8,6 +8,7 @@ from apps.platform_admin.interfaces.api.views import (
     AdminAiUsageView,
     AdminAnalyticsOverviewView,
     AdminAuditLogsView,
+    AdminInvoicesView,
     AdminManualPaymentApproveView,
     AdminManualPaymentRejectView,
     AdminManualPaymentsView,
@@ -27,6 +28,7 @@ urlpatterns = [
     path("organizations/", AdminOrganizationsView.as_view(), name="organizations"),
     path("subscriptions/", AdminSubscriptionsView.as_view(), name="subscriptions"),
     path("payments/", AdminPaymentsView.as_view(), name="payments"),
+    path("invoices/", AdminInvoicesView.as_view(), name="invoices"),
     path("manual-payments/", AdminManualPaymentsView.as_view(), name="manual-payments"),
     path(
         "manual-payments/<uuid:request_id>/approve/",

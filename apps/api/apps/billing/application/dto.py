@@ -50,6 +50,12 @@ class InvoiceDTO:
     pdf_url: str
     issued_at: datetime | None
     paid_at: datetime | None
+    receipt_number: str = ""
+    receipt_url: str = ""
+    payment_provider: str = ""
+    payment_reference: str = ""
+    emailed_to: str = ""
+    emailed_at: datetime | None = None
 
 
 @dataclass(slots=True)

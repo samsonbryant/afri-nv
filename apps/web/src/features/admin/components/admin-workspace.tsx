@@ -30,6 +30,7 @@ import {
 import {
   useAdminAiUsage,
   useAdminAuditLogs,
+  useAdminInvoices,
   useAdminManualPayments,
   useAdminOrganizations,
   useAdminOverview,
@@ -70,6 +71,7 @@ export function AdminWorkspace() {
   const orgs = useAdminOrganizations();
   const subs = useAdminSubscriptions();
   const payments = useAdminPayments();
+  const invoices = useAdminInvoices();
   const manualPayments = useAdminManualPayments();
   const approvePayment = useApproveManualPayment();
   const rejectPayment = useRejectManualPayment();
@@ -399,6 +401,42 @@ export function AdminWorkspace() {
                         </TableCell>
                       </TableRow>
                     ))}
+                </TableBody>
+              </AdminTable>
+            </div>
+            <div>
+              <h3 className="mb-3 font-semibold">Invoices and receipts</h3>
+              <AdminTable loading={invoices.isLoading}>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice</TableHead>
+                    <TableHead>Receipt</TableHead>
+                    <TableHead>Organization</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Provider</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Customer copy</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(invoices.data ?? []).map((invoice) => (
+                    <TableRow key={invoice.id}>
+                      <TableCell className="font-medium">{invoice.number}</TableCell>
+                      <TableCell>{invoice.receiptNumber || "—"}</TableCell>
+                      <TableCell>{invoice.organizationName}</TableCell>
+                      <TableCell>
+                        {new Intl.NumberFormat("en-US", {
+                          style: "currency",
+                          currency: "USD",
+                        }).format(invoice.amountCents / 100)}
+                      </TableCell>
+                      <TableCell className="capitalize">
+                        {(invoice.paymentProvider || "—").replaceAll("_", " ")}
+                      </TableCell>
+                      <TableCell>{invoice.paymentReference || "—"}</TableCell>
+                      <TableCell>{invoice.emailedTo || "Not emailed"}</TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </AdminTable>
             </div>

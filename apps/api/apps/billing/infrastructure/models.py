@@ -90,6 +90,12 @@ class Invoice(BaseModel):
     pdf_url = models.URLField(blank=True, default="")
     issued_at = models.DateTimeField(null=True, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
+    receipt_number = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    receipt_url = models.URLField(blank=True, default="")
+    payment_provider = models.CharField(max_length=32, blank=True, default="")
+    payment_reference = models.CharField(max_length=128, blank=True, default="", db_index=True)
+    emailed_to = models.EmailField(blank=True, default="")
+    emailed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "billing_invoice"

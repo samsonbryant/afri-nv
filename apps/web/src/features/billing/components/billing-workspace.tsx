@@ -408,21 +408,54 @@ export function BillingWorkspace() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Number</TableHead>
+                  <TableHead>Receipt</TableHead>
                   <TableHead>Amount</TableHead>
+                  <TableHead>Payment</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Copies</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {invoices.slice(0, 5).map((invoice) => (
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium">{invoice.number}</TableCell>
+                    <TableCell>{invoice.receiptNumber || "—"}</TableCell>
                     <TableCell>
                       {invoice.currency} {invoice.amount.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <span className="capitalize">
+                        {(invoice.paymentProvider || "—").replaceAll("_", " ")}
+                      </span>
+                      {invoice.paymentReference ? (
+                        <span className="text-muted-foreground block text-xs">
+                          {invoice.paymentReference}
+                        </span>
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       <Badge variant={invoice.status === "paid" ? "success" : "secondary"}>
                         {invoice.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        {invoice.hostedUrl ? (
+                          <Button asChild size="sm" variant="outline">
+                            <a href={invoice.hostedUrl}>Invoice</a>
+                          </Button>
+                        ) : null}
+                        {invoice.receiptUrl ? (
+                          <Button asChild size="sm" variant="outline">
+                            <a href={invoice.receiptUrl}>Receipt</a>
+                          </Button>
+                        ) : null}
+                      </div>
+                      {invoice.emailedTo ? (
+                        <span className="text-muted-foreground mt-1 block text-xs">
+                          Emailed to {invoice.emailedTo}
+                        </span>
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 ))}
