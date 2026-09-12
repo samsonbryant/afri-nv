@@ -63,6 +63,19 @@ export type AdminPayment = {
   createdAt: string;
 };
 
+export type AdminInvoice = {
+  id: string;
+  organizationName: string;
+  number: string;
+  receiptNumber?: string;
+  amountCents: number;
+  status: string;
+  paymentProvider?: string;
+  paymentReference?: string;
+  emailedTo?: string;
+  issuedAt: string;
+};
+
 export type AdminAiUsage = {
   id: string;
   organizationName: string;

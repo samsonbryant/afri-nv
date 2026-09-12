@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api/errors";
 import type {
   AdminAiUsage,
   AdminAuditLog,
+  AdminInvoice,
   AdminManualPayment,
   AdminOrganization,
   AdminOverview,
@@ -363,6 +364,22 @@ export async function fetchAdminManualPayments(status?: string): Promise<AdminMa
     : API_ENDPOINTS.admin.manualPayments;
   const list = await getList(path);
   return list.map(mapManualPayment);
+}
+
+export async function fetchAdminInvoices(): Promise<AdminInvoice[]> {
+  const list = await getList(API_ENDPOINTS.admin.invoices);
+  return list.map((raw) => ({
+    id: String(raw.id ?? ""),
+    organizationName: pickString(raw, "organization_name", "organizationName"),
+    number: pickString(raw, "number"),
+    receiptNumber: pickString(raw, "receipt_number", "receiptNumber") || undefined,
+    amountCents: pickNumber(raw, "amount_cents", "amountCents"),
+    status: pickString(raw, "status"),
+    paymentProvider: pickString(raw, "payment_provider", "paymentProvider") || undefined,
+    paymentReference: pickString(raw, "payment_reference", "paymentReference") || undefined,
+    emailedTo: pickString(raw, "emailed_to", "emailedTo") || undefined,
+    issuedAt: pickIso(raw, "issued_at", "issuedAt"),
+  }));
 }
 
 export async function approveAdminManualPayment(id: string): Promise<AdminManualPayment> {

@@ -6,6 +6,7 @@ from apps.accounts.application.dto import RegisterUserDTO
 from apps.accounts.infrastructure.dependencies import get_auth_service
 from apps.billing.domain.exceptions import PaymentProviderUnavailableError
 from apps.billing.infrastructure.dependencies import get_billing_service
+from apps.billing.infrastructure.models import Invoice
 from apps.organizations.application.dto import CreateOrganizationDTO
 from apps.organizations.infrastructure.dependencies import get_organization_service
 
@@ -76,3 +77,9 @@ def test_approved_mobile_payment_creates_payment_ready_subscription() -> None:
     assert subscription.status == "active"
     assert subscription.payment_method == "mtn_momo"
     assert subscription.auto_charge is False
+    invoice = Invoice.objects.get(subscription_id=subscription.id)
+    assert invoice.number.startswith("INV-")
+    assert invoice.receipt_number and invoice.receipt_number.startswith("RCT-")
+    assert invoice.payment_reference == "TXN-123456"
+    assert invoice.payment_provider == "mtn_momo"
+    assert invoice.emailed_to == "mobile-payment@novixa.ai"

@@ -116,6 +116,12 @@ function mapInvoice(raw: Record<string, unknown>, index = 0): Invoice {
     status: (pickString(raw, "status") || "open") as Invoice["status"],
     issuedAt: pickIso(raw, "issuedAt", "issued_at", "created_at"),
     pdfUrl: pickString(raw, "pdfUrl", "pdf_url", "hosted_url") || undefined,
+    hostedUrl: pickString(raw, "hostedUrl", "hosted_url") || undefined,
+    receiptNumber: pickString(raw, "receiptNumber", "receipt_number") || undefined,
+    receiptUrl: pickString(raw, "receiptUrl", "receipt_url") || undefined,
+    paymentProvider: pickString(raw, "paymentProvider", "payment_provider") || undefined,
+    paymentReference: pickString(raw, "paymentReference", "payment_reference") || undefined,
+    emailedTo: pickString(raw, "emailedTo", "emailed_to") || undefined,
   };
 }
 

@@ -200,6 +200,7 @@ export const API_ENDPOINTS = {
     organizations: "/admin/organizations/",
     subscriptions: "/admin/subscriptions/",
     payments: "/admin/payments/",
+    invoices: "/admin/invoices/",
     manualPayments: "/admin/manual-payments/",
     approveManualPayment: (id: string) => `/admin/manual-payments/${id}/approve/`,
     rejectManualPayment: (id: string) => `/admin/manual-payments/${id}/reject/`,

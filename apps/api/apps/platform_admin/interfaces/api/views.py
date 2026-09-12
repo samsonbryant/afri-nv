@@ -76,6 +76,14 @@ class AdminPaymentsView(APIView):
         return Response(get_platform_admin_service().list_payments())
 
 
+class AdminInvoicesView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @extend_schema(tags=["admin"])
+    def get(self, request: Request) -> Response:
+        return Response(get_billing_service().list_all_invoices())
+
+
 class AdminManualPaymentsView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
 

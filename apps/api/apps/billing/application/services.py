@@ -6,6 +6,9 @@ import logging
 from datetime import timedelta
 from uuid import UUID, uuid4
 
+from django.conf import settings
+from django.core.mail import send_mail
+from django.db import transaction
 from django.utils import timezone
 
 from apps.billing.application.dto import InvoiceDTO, PlanDTO, SubscriptionDTO, UsageDTO
@@ -25,11 +28,12 @@ from apps.billing.infrastructure.models import (
     Subscription,
     UsageRecord,
 )
+from apps.billing.interfaces.serializers.serializers import InvoiceSerializer
 from apps.core.domain.exceptions import ValidationError
 from apps.organizations.domain.entities import MembershipRole
 from apps.organizations.domain.exceptions import InsufficientRoleError, NotOrganizationMemberError
 from apps.organizations.domain.repositories import AbstractMembershipRepository
-from apps.organizations.infrastructure.models import Organization
+from apps.organizations.infrastructure.models import Membership, Organization
 from infrastructure.external.dodo import DodoPaymentsClient
 
 logger = logging.getLogger(__name__)
@@ -205,6 +209,15 @@ class BillingService:
             self._invoice_dto(i) for i in Invoice.objects.filter(organization_id=organization_id)
         ]
 
+    def list_all_invoices(self) -> list[dict]:
+        return [
+            {
+                **InvoiceSerializer(self._invoice_dto(invoice)).data,
+                "organization_name": invoice.organization.name,
+            }
+            for invoice in Invoice.objects.select_related("organization", "subscription")[:500]
+        ]
+
     def validate_coupon(self, code: str) -> dict:
         try:
             coupon = Coupon.objects.get(code=code)
@@ -344,17 +357,11 @@ class BillingService:
                         "updated_at",
                     ]
                 )
-                if data.get("create_invoice"):
-                    Invoice.objects.create(
-                        organization_id=sub.organization_id,
-                        subscription=sub,
-                        number=f"INV-{uuid4().hex[:10].upper()}",
-                        amount_cents=sub.plan.amount_cents,
-                        tax_cents=0,
-                        status=Invoice.Status.PAID if status == "active" else Invoice.Status.OPEN,
-                        hosted_url=f"https://novixa.ai/invoices/stub/{uuid4().hex[:8]}",
-                        issued_at=timezone.now(),
-                        paid_at=timezone.now() if status == "active" else None,
+                if status == Subscription.Status.ACTIVE:
+                    self._issue_paid_documents(
+                        sub,
+                        payment_provider="dodo",
+                        payment_reference=sub.payment_method_ref,
                     )
         event.processed_at = timezone.now()
         event.save(update_fields=["processed_at", "updated_at"])
@@ -517,17 +524,11 @@ class BillingService:
             auto_charge=False,
             last_charged_at=now,
         )
-        Invoice.objects.create(
-            organization_id=req.organization_id,
-            subscription=sub,
-            number=f"INV-MM-{uuid4().hex[:10].upper()}",
-            amount_cents=req.amount_cents,
-            tax_cents=0,
-            status=Invoice.Status.PAID,
-            hosted_url="",
-            pdf_url="",
-            issued_at=now,
-            paid_at=now,
+        self._issue_paid_documents(
+            sub,
+            payment_provider=req.provider,
+            payment_reference=req.transaction_id or req.reference,
+            to_email=getattr(req.requested_by, "email", ""),
         )
         PaymentEvent.objects.create(
             provider=req.provider,
@@ -767,16 +768,11 @@ class BillingService:
                     currency=sub.plan.currency or "usd",
                     description=f"Novixa {sub.plan.name} after trial",
                 )
-                Invoice.objects.create(
-                    organization_id=sub.organization_id,
-                    subscription=sub,
-                    number=f"INV-{uuid4().hex[:10].upper()}",
-                    amount_cents=sub.plan.amount_cents,
-                    tax_cents=0,
-                    status=Invoice.Status.PAID,
-                    hosted_url=str(result.get("receipt_url") or ""),
-                    issued_at=now,
-                    paid_at=now,
+                self._issue_paid_documents(
+                    sub,
+                    payment_provider="dodo",
+                    payment_reference=str(result.get("id") or sub.payment_method_ref),
+                    provider_receipt_url=str(result.get("receipt_url") or ""),
                 )
                 sub.status = Subscription.Status.ACTIVE
                 sub.last_charged_at = now
@@ -813,4 +809,71 @@ class BillingService:
             pdf_url=i.pdf_url,
             issued_at=i.issued_at,
             paid_at=i.paid_at,
+            receipt_number=i.receipt_number or "",
+            receipt_url=i.receipt_url,
+            payment_provider=i.payment_provider,
+            payment_reference=i.payment_reference,
+            emailed_to=i.emailed_to,
+            emailed_at=i.emailed_at,
         )
+
+    def _issue_paid_documents(
+        self,
+        sub: Subscription,
+        *,
+        payment_provider: str,
+        payment_reference: str,
+        to_email: str = "",
+        provider_receipt_url: str = "",
+    ) -> Invoice:
+        existing = Invoice.objects.filter(
+            subscription=sub, payment_reference=payment_reference
+        ).first()
+        if existing:
+            return existing
+        now = timezone.now()
+        token = uuid4().hex[:10].upper()
+        frontend = getattr(settings, "FRONTEND_URL", "https://novixa.ai").rstrip("/")
+        if not to_email:
+            membership = (
+                Membership.objects.filter(organization_id=sub.organization_id)
+                .select_related("user")
+                .order_by("created_at")
+                .first()
+            )
+            to_email = membership.user.email if membership else ""
+        invoice = Invoice.objects.create(
+            organization_id=sub.organization_id,
+            subscription=sub,
+            number=f"INV-{token}",
+            receipt_number=f"RCT-{token}",
+            amount_cents=sub.plan.amount_cents,
+            tax_cents=0,
+            status=Invoice.Status.PAID,
+            hosted_url=f"{frontend}/billing?invoice=INV-{token}",
+            receipt_url=provider_receipt_url or f"{frontend}/billing?receipt=RCT-{token}",
+            payment_provider=payment_provider,
+            payment_reference=payment_reference,
+            issued_at=now,
+            paid_at=now,
+            emailed_to=to_email,
+            emailed_at=now if to_email else None,
+        )
+        if to_email:
+            body = (
+                f"Payment received for {sub.plan.name}.\n\n"
+                f"Invoice: {invoice.number}\nReceipt: {invoice.receipt_number}\n"
+                f"Amount: ${invoice.amount_cents / 100:.2f} USD\n"
+                f"Payment method: {payment_provider}\nReference: {payment_reference}\n\n"
+                f"View your records: {frontend}/billing\n"
+            )
+            transaction.on_commit(
+                lambda: send_mail(
+                    f"Novixa payment receipt {invoice.receipt_number}",
+                    body,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [to_email],
+                    fail_silently=True,
+                )
+            )
+        return invoice
