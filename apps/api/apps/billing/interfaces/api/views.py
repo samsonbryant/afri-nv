@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from django.http import HttpResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -9,7 +10,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.billing.application.documents import render_payment_pdf
 from apps.billing.infrastructure.dependencies import get_billing_service
+from apps.billing.infrastructure.models import Invoice
 from apps.billing.interfaces.serializers.serializers import (
     AttachCardSerializer,
     CheckoutSerializer,
@@ -24,6 +27,7 @@ from apps.billing.interfaces.serializers.serializers import (
     UsageSerializer,
 )
 from apps.core.domain.exceptions import ValidationError
+from apps.organizations.infrastructure.models import Membership
 
 
 def _require_org(request: Request) -> UUID:
@@ -109,6 +113,41 @@ class InvoiceListView(APIView):
     def get(self, request: Request) -> Response:
         items = get_billing_service().list_invoices(request.user.id, _require_org(request))
         return Response(InvoiceSerializer(items, many=True).data)
+
+
+class InvoiceDocumentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["billing"])
+    def get(self, request: Request, invoice_id: UUID, kind: str) -> HttpResponse:
+        if kind not in {"invoice", "receipt"}:
+            raise ValidationError("Document type must be invoice or receipt.")
+        try:
+            invoice = Invoice.objects.select_related("organization", "subscription__plan").get(
+                pk=invoice_id
+            )
+        except Invoice.DoesNotExist as exc:
+            from apps.billing.domain.exceptions import InvoiceNotFoundError
+
+            raise InvoiceNotFoundError() from exc
+        allowed = (
+            request.user.is_staff
+            or Membership.objects.filter(
+                user_id=request.user.id, organization_id=invoice.organization_id
+            ).exists()
+        )
+        if not allowed:
+            from apps.core.domain.exceptions import PermissionDeniedError
+
+            raise PermissionDeniedError("You cannot access this payment document.")
+        number = invoice.number if kind == "invoice" else invoice.receipt_number
+        if not number:
+            raise ValidationError("This receipt has not been generated yet.")
+        response = HttpResponse(render_payment_pdf(invoice, kind), content_type="application/pdf")
+        disposition = "attachment" if request.query_params.get("download") == "1" else "inline"
+        response["Content-Disposition"] = f'{disposition}; filename="{number}.pdf"'
+        response["Cache-Control"] = "private, no-store"
+        return response
 
 
 class CouponValidateView(APIView):

@@ -48,6 +48,7 @@ import { useAdminStore } from "@/features/admin/stores/admin-store";
 import type { AdminUser } from "@/features/admin/types";
 import { ApiError } from "@/lib/api/errors";
 import { formatDate } from "@/lib/utils/format";
+import { openInvoiceDocument } from "@/features/billing/api/billing-api";
 
 function matchesSearch(haystack: string, search: string) {
   if (!search.trim()) return true;
@@ -434,7 +435,39 @@ export function AdminWorkspace() {
                         {(invoice.paymentProvider || "—").replaceAll("_", " ")}
                       </TableCell>
                       <TableCell>{invoice.paymentReference || "—"}</TableCell>
-                      <TableCell>{invoice.emailedTo || "Not emailed"}</TableCell>
+                      <TableCell>
+                        <span className="block">{invoice.emailedTo || "Not emailed"}</span>
+                        <div className="mt-1 flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void openInvoiceDocument(invoice.id, "invoice")}
+                          >
+                            Invoice
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void openInvoiceDocument(invoice.id, "receipt")}
+                          >
+                            Receipt
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => void openInvoiceDocument(invoice.id, "invoice", true)}
+                          >
+                            Download invoice
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => void openInvoiceDocument(invoice.id, "receipt", true)}
+                          >
+                            Download receipt
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
