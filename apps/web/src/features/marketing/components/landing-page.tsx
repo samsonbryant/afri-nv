@@ -59,7 +59,7 @@ export function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.1, ease: easeOut }}
               >
-                The AI business operating system for teams that ship
+                Turn more leads into paying clients with AI
               </motion.h1>
 
               <motion.p
@@ -68,8 +68,8 @@ export function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.2, ease: easeOut }}
               >
-                Assistants, workflows, knowledge, CRM, and customer ops—one platform with plans you
-                can subscribe to as you grow.
+                Novixa helps freelancers, agencies, and service businesses manage leads, create
+                proposals, automate follow-ups, support customers, and track payments.
               </motion.p>
 
               <motion.div
@@ -122,11 +122,10 @@ export function LandingPage() {
         <div className="container relative">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-              Everything Novixa offers
+              Everything you need to win and serve clients
             </h2>
             <p className="text-muted-foreground mt-3 text-balance text-base sm:text-lg">
-              Subscribe once, then unlock the modules your business needs—from AI chat to CRM and
-              automations.
+              One practical workspace for the client journey—from first inquiry to paid invoice.
             </p>
           </div>
 
@@ -176,6 +175,46 @@ export function LandingPage() {
         </div>
       </section>
 
+      <section className="border-border/60 bg-muted/30 border-y py-20 sm:py-24">
+        <div className="container">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-primary text-sm font-semibold">A practical client workflow</p>
+            <h2 className="font-display mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+              From new lead to paid invoice
+            </h2>
+            <p className="text-muted-foreground mt-3">
+              Novixa keeps the next action clear while AI handles the repetitive drafting.
+            </p>
+          </div>
+          <ol className="mx-auto mt-12 grid max-w-5xl gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["01", "Capture the lead", "Record the inquiry, contact, need, and expected value."],
+              [
+                "02",
+                "Create the proposal",
+                "Draft a tailored quotation, proposal, and client email.",
+              ],
+              [
+                "03",
+                "Follow up automatically",
+                "Schedule reminders and keep the opportunity moving.",
+              ],
+              [
+                "04",
+                "Support and get paid",
+                "Manage questions, issue the invoice, and track payment.",
+              ],
+            ].map(([number, title, description]) => (
+              <li key={number} className="bg-card border-border/80 rounded-2xl border p-6">
+                <span className="text-primary text-sm font-bold">{number}</span>
+                <h3 className="font-display mt-3 text-lg font-semibold">{title}</h3>
+                <p className="text-muted-foreground mt-2 text-sm leading-relaxed">{description}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
       {/* Pricing / subscribe */}
       <section
         id="pricing"
@@ -187,12 +226,12 @@ export function LandingPage() {
               Plans that grow with you
             </h2>
             <p className="text-muted-foreground mt-3 text-balance">
-              Start a 15-day trial with up to 100 AI requests. Add a card at signup; billing starts
+              Start a 14-day trial with up to 100 AI requests. Add a card at signup; billing starts
               automatically when the trial ends. Mobile money is available in supported markets.
             </p>
           </div>
 
-          <div className="mx-auto mt-12 grid max-w-5xl gap-5 lg:grid-cols-3">
+          <div className="mx-auto mt-12 grid max-w-6xl gap-5 md:grid-cols-2 xl:grid-cols-4">
             {NOVIXA_PLANS.map((plan) => (
               <div
                 key={plan.id}

@@ -155,7 +155,7 @@ export const GUIDE_REGISTRY: ModuleGuide[] = [
     "billing",
     "/billing",
     "Billing",
-    "Manage your plan, 15-day trial, card, invoices, usage, and manual payment requests.",
+    "Manage your plan, 14-day trial, card, invoices, usage, and manual payment requests.",
     "Confirm the selected plan, card status, auto-charge setting, and trial end date.",
     "Monitor usage and update payment details before renewal to prevent interruption.",
   ),

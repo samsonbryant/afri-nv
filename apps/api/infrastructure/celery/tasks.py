@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import structlog
+
 from celery import shared_task
 
 logger = structlog.get_logger(__name__)
@@ -63,7 +64,7 @@ def process_report_generation(self, report_id: str) -> dict[str, str]:  # type: 
 
 @shared_task(name="infrastructure.charge_expired_trials")
 def charge_expired_trials() -> dict:
-    """Auto-debit saved cards when a 15-day trial ends."""
+    """Auto-debit saved cards when a trial ends."""
     from apps.billing.infrastructure.dependencies import get_billing_service
 
     logger.info("charge_expired_trials_started")

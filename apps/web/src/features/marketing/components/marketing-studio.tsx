@@ -425,7 +425,7 @@ function FacebookAdsPanel() {
             id="ad-prompt"
             value={captionPrompt}
             onChange={(e) => setCaptionPrompt(e.target.value)}
-            placeholder="Promote our 15-day trial…"
+            placeholder="Promote our 14-day trial…"
             required
           />
         </div>

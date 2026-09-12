@@ -2,7 +2,7 @@ export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Novixa";
 
 export const APP_DESCRIPTION =
   process.env.NEXT_PUBLIC_APP_DESCRIPTION ??
-  "AI business operating system for teams that ship—assistants, workflows, knowledge, CRM, and subscriptions.";
+  "AI client management and follow-up platform for freelancers, agencies, and service businesses.";
 
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 

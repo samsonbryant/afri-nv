@@ -9,7 +9,7 @@ export const siteConfig = {
     twitter: "https://twitter.com/novixa",
     github: "https://github.com/novixa",
   },
-  tagline: "Operate your business with AI that actually ships work.",
+  tagline: "Turn more leads into paying clients with AI.",
 } as const;
 
 export type SiteConfig = typeof siteConfig;

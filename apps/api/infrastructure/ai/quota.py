@@ -153,7 +153,7 @@ def upgrade_footer(*, remaining: int | None = None, blocked: bool = False) -> st
     if blocked:
         return (
             f"\n\n---\n"
-            f"**Free plan limit reached.** Start a 15-day trial with a card on file: "
+            f"**Free plan limit reached.** Start a 14-day trial with a card on file: "
             f"[{url}]({url})"
         )
     left = (
@@ -161,7 +161,7 @@ def upgrade_footer(*, remaining: int | None = None, blocked: bool = False) -> st
         if remaining is not None
         else ""
     )
-    return f"\n\n---\n*Free plan{left}. Start a 15-day trial (card required):* [{url}]({url})"
+    return f"\n\n---\n*Free plan{left}. Start a 14-day trial (card required):* [{url}]({url})"
 
 
 def blocked_upgrade_reply(user_content: str = "") -> str:
@@ -170,7 +170,7 @@ def blocked_upgrade_reply(user_content: str = "") -> str:
     return (
         f"**Free plan limit reached.** You've used your free AI requests for this month."
         f"{asked}\n\n"
-        f"Start a **15-day trial** (add a card — we auto-charge when the trial ends):\n"
+        f"Start a **14-day trial** (add a card — we auto-charge when the trial ends):\n"
         f"{upgrade_url()}"
     )
 

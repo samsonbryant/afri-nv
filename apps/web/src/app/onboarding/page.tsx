@@ -162,7 +162,7 @@ function OnboardingFlow() {
               {step === "profile" && item === "trial" ? <Check className="h-4 w-4" /> : index + 1}
             </span>
             <span className="text-sm font-medium">
-              {item === "trial" ? "15-day trial" : "Business profile"}
+              {item === "trial" ? "14-day trial" : "Business profile"}
             </span>
           </li>
         ))}

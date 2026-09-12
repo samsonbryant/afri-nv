@@ -195,7 +195,7 @@ Payments are **USD only**.
 - `DODO_API_KEY`: empty enables local stub checkout.
 - `DODO_WEBHOOK_SECRET`: Standard Webhooks signing secret (`whsec_...`).
 - `DODO_ENVIRONMENT`: `test_mode` or `live_mode`.
-- `DODO_PRODUCT_STARTER`, `DODO_PRODUCT_GROWTH`, `DODO_PRODUCT_SCALE`: recurring Dodo product IDs.
+- `DODO_PRODUCT_STARTER`, `DODO_PRODUCT_PRO`, `DODO_PRODUCT_BUSINESS`: recurring Dodo product IDs.
 
 **Flow today**
 
@@ -353,8 +353,8 @@ DODO_API_KEY=                 # optional until live cards
 DODO_WEBHOOK_SECRET=
 DODO_ENVIRONMENT=live_mode
 DODO_PRODUCT_STARTER=
-DODO_PRODUCT_GROWTH=
-DODO_PRODUCT_SCALE=
+DODO_PRODUCT_PRO=
+DODO_PRODUCT_BUSINESS=
 META_GRAPH_ACCESS_TOKEN=      # optional until live social
 META_WHATSAPP_PHONE_NUMBER_ID=
 META_WHATSAPP_DEFAULT_TO=
@@ -386,7 +386,7 @@ NEXT_PUBLIC_DEMO_MODE=false
 ## Smoke checklist after wiring
 
 1. `GET /api/v1/health/` (via Vercel proxy).
-2. Register / login; confirm redirect to the 15-day trial step.
+2. Register / login; confirm redirect to the 14-day trial step.
 3. Choose a plan, attach a card, complete the business profile, and upload a logo.
 4. Confirm dashboard access remains blocked until onboarding is complete.
 5. Settings → enable 2FA with an authenticator app.

@@ -89,7 +89,7 @@ export function BillingWorkspace() {
     <div>
       <PageHeader
         title="Billing"
-        description="Explore all core modules for 15 days with up to 100 AI requests. When the trial ends, we auto-debit your plan in USD. Mobile money is available in supported markets."
+        description="Explore all core modules for 14 days with up to 100 AI requests. When the trial ends, we auto-debit your plan in USD. Mobile money is available in supported markets."
       />
 
       <section className="border-border bg-card mb-8 rounded-xl border p-5">
@@ -101,7 +101,7 @@ export function BillingWorkspace() {
             </h2>
             <p className="text-muted-foreground mt-1 text-sm">
               Add a payment method so Novixa can charge your selected plan automatically when the
-              15-day trial ends.
+              14-day trial ends.
             </p>
             {subscription?.cardLast4 ? (
               <p className="mt-3 text-sm">
@@ -205,7 +205,7 @@ export function BillingWorkspace() {
           </div>
         ) : (
           <p className="text-muted-foreground mt-3 text-sm">
-            No active subscription yet. Choose a plan to start the 15-day trial.
+            No active subscription yet. Choose a plan to start the 14-day trial.
           </p>
         )}
       </section>
@@ -268,7 +268,7 @@ export function BillingWorkspace() {
                                 return;
                               }
                               toast.success(
-                                "15-day trial started — add a card below for auto-debit.",
+                                "14-day trial started — add a card below for auto-debit.",
                               );
                               setCardRef(`pm_trial_${plan.id}_${Date.now()}`);
                               setCardLast4("4242");
@@ -284,7 +284,7 @@ export function BillingWorkspace() {
                           ? "Contact sales"
                           : checkout.isPending
                             ? "Starting…"
-                            : "Start with card (15-day trial)"}
+                            : "Start with card (14-day trial)"}
                     </Button>
                     <Button
                       variant="outline"

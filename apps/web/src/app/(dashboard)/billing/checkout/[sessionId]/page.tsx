@@ -77,7 +77,7 @@ export default function BillingCheckoutPage() {
     <div className="mx-auto max-w-lg space-y-6 py-10">
       <PageHeader
         title="Confirming card checkout"
-        description="Attaching your payment method and activating the 15-day trial."
+        description="Attaching your payment method and activating the 14-day trial."
       />
       <div className="border-border bg-card flex items-center gap-3 rounded-xl border p-4 text-sm">
         {attachCard.isPending || (isLiveReturn && !liveError) ? (
