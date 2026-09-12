@@ -14,6 +14,7 @@ from apps.core.domain.exceptions import (
     DomainError,
     NotFoundError,
     PermissionDeniedError,
+    ServiceUnavailableError,
     ValidationError,
 )
 
@@ -23,6 +24,7 @@ _STATUS_MAP: dict[type[DomainError], int] = {
     ValidationError: status.HTTP_400_BAD_REQUEST,
     ConflictError: status.HTTP_409_CONFLICT,
     AuthenticationError: status.HTTP_401_UNAUTHORIZED,
+    ServiceUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
 }
 
 

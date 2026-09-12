@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from apps.core.domain.exceptions import NotFoundError, ValidationError
+from apps.core.domain.exceptions import NotFoundError, ServiceUnavailableError, ValidationError
 
 
 class PlanNotFoundError(NotFoundError):
@@ -31,3 +31,11 @@ class PaymentRequestNotFoundError(NotFoundError):
 class PaymentRequestInvalidError(ValidationError):
     default_message = "Payment request cannot be updated."
     code = "payment_request_invalid"
+
+
+class PaymentProviderUnavailableError(ServiceUnavailableError):
+    default_message = (
+        "Card checkout is temporarily unavailable. "
+        "Please use MTN MoMo or Orange Money below, or contact support."
+    )
+    code = "payment_provider_unavailable"

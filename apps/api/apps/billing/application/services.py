@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 from uuid import UUID, uuid4
 
@@ -10,6 +11,7 @@ from django.utils import timezone
 from apps.billing.application.dto import InvoiceDTO, PlanDTO, SubscriptionDTO, UsageDTO
 from apps.billing.domain.exceptions import (
     CouponInvalidError,
+    PaymentProviderUnavailableError,
     PaymentRequestInvalidError,
     PaymentRequestNotFoundError,
     PlanNotFoundError,
@@ -29,6 +31,8 @@ from apps.organizations.domain.exceptions import InsufficientRoleError, NotOrgan
 from apps.organizations.domain.repositories import AbstractMembershipRepository
 from apps.organizations.infrastructure.models import Organization
 from infrastructure.external.dodo import DodoPaymentsClient
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_PLANS = [
     {
@@ -129,15 +133,26 @@ class BillingService:
         from apps.accounts.infrastructure.models import User
 
         actor = User.objects.filter(pk=actor_id).first()
-        session = self._dodo.create_checkout(
-            organization_id=str(organization_id),
-            plan_code=plan.code,
-            amount_cents=plan.amount_cents,
-            currency=plan.currency,
-            coupon=coupon,
-            customer_email=actor.email if actor else "",
-            customer_name=actor.get_full_name() if actor else "",
-        )
+        try:
+            session = self._dodo.create_checkout(
+                organization_id=str(organization_id),
+                plan_code=plan.code,
+                amount_cents=plan.amount_cents,
+                currency=plan.currency,
+                coupon=coupon,
+                customer_email=actor.email if actor else "",
+                customer_name=actor.get_full_name() if actor else "",
+            )
+        except Exception as exc:
+            logger.exception(
+                "Card checkout provider failed",
+                extra={
+                    "organization_id": str(organization_id),
+                    "plan_code": plan.code,
+                    "provider": "dodo",
+                },
+            )
+            raise PaymentProviderUnavailableError() from exc
         now = timezone.now()
         trial_days = int(plan.trial_days or 14)
         # Cancel prior open subscriptions for this org.

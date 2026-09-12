@@ -4,6 +4,7 @@ import pytest
 
 from apps.accounts.application.dto import RegisterUserDTO
 from apps.accounts.infrastructure.dependencies import get_auth_service
+from apps.billing.domain.exceptions import PaymentProviderUnavailableError
 from apps.billing.infrastructure.dependencies import get_billing_service
 from apps.organizations.application.dto import CreateOrganizationDTO
 from apps.organizations.infrastructure.dependencies import get_organization_service
@@ -27,3 +28,23 @@ def test_billing_checkout() -> None:
     sub = service.get_subscription(user.id, org.id)
     assert sub is not None
     assert sub.plan_code == "pro"
+
+
+@pytest.mark.django_db
+@pytest.mark.unit
+def test_billing_checkout_translates_provider_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    user, _ = get_auth_service().register(
+        RegisterUserDTO(email="provider-failure@novixa.ai", password="securepass123")
+    )
+    org = get_organization_service().create(
+        user.id, CreateOrganizationDTO(name="Provider Failure", slug="provider-failure")
+    )
+    service = get_billing_service()
+
+    def fail_checkout(**_kwargs):
+        raise RuntimeError("provider credentials are missing")
+
+    monkeypatch.setattr(service._dodo, "create_checkout", fail_checkout)
+
+    with pytest.raises(PaymentProviderUnavailableError):
+        service.checkout(user.id, org.id, "starter")
